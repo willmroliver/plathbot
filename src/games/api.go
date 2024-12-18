@@ -1,6 +1,7 @@
 package games
 
 import (
+	"log"
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -19,8 +20,8 @@ func HandleCallbackQuery(bot *botapi.BotAPI, m *botapi.CallbackQuery, cmd string
 	}
 }
 
-func SendMenu(bot *botapi.BotAPI, chatID int64) (err error) {
-	msg := botapi.NewMessage(chatID, "Want to play?")
+func SendMenu(bot *botapi.BotAPI, m *botapi.Message) (err error) {
+	msg := botapi.NewMessage(m.Chat.ID, "Want to play?")
 	msg.ReplyMarkup = botapi.NewInlineKeyboardMarkup(
 		botapi.NewInlineKeyboardRow(
 			botapi.NewInlineKeyboardButtonData("Coin Toss", "games/cointoss/"),
@@ -28,6 +29,10 @@ func SendMenu(bot *botapi.BotAPI, chatID int64) (err error) {
 	)
 
 	_, err = bot.Send(msg)
+
+	if err != nil {
+		log.Printf("Error sending menu: %q", err.Error())
+	}
 
 	return
 }

@@ -5,30 +5,44 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
 type CoinToss struct {
-	ID       int64
-	bot      *botapi.BotAPI
-	chatID   int64
-	players  []*botapi.User
-	chooses  int
-	nextMove string
+	ID        int64
+	bot       *botapi.BotAPI
+	chatID    int64
+	messageID int
+	players   []*botapi.User
+	chooses   int
+	nextMove  string
+	mu        sync.Mutex
+	updated   time.Time
 }
 
-var running = map[int64]*CoinToss{}
+var running = sync.Map{}
 
 func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd string) {
-	if cmd == "" {
-		_, exists := running[query.From.ID]
-		if !exists {
-			game := NewCoinToss(bot, query.Message.Chat.ID, query.From)
+	running.Range(func(key any, value any) (res bool) {
+		game := value.(*CoinToss)
+		if game.updated.Add(time.Minute*15).Compare(time.Now()) == -1 {
+			running.Delete(key)
+		}
 
-			if game.RequestToss() == nil {
-				running[game.ID] = game
+		return
+	})
+
+	if cmd == "" {
+		_, exists := running.Load(query.From.ID)
+		if !exists {
+			game := NewCoinToss(bot, query.Message, query.From)
+
+			if game.RequestToss(query) == nil {
+				running.Store(game.ID, game)
 			}
 		}
 
@@ -44,35 +58,50 @@ func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd string) 
 		return
 	}
 
-	game, exists := running[id]
-
+	val, exists := running.Load(id)
 	if !exists {
 		log.Printf("Game %d does not exist", id)
 		return
 	}
 
-	switch cmd {
-	case "accept":
-		if game.AcceptToss(query.From) != nil {
-			delete(running, id)
-		}
-	case "heads":
-		game.Toss(true)
-	case "tails":
-		game.Toss(false)
-	default:
+	game := val.(*CoinToss)
+
+	if !game.mu.TryLock() {
 		return
 	}
+
+	defer game.mu.Unlock()
+
+	switch cmd {
+	case "accept":
+		if game.AcceptToss(query) != nil {
+			running.Delete(game.ID)
+		}
+	case "heads", "tails":
+		if query.From.ID != game.GetChosen().ID {
+			break
+		}
+
+		game.Toss(query, cmd == "heads")
+	default:
+		break
+	}
+
+	// Throttle a bit to protect message rate limit
+	// Works well with the mutex lock strategy above to stagger games
+	time.Sleep(time.Millisecond * 500)
 }
 
-func NewCoinToss(bot *botapi.BotAPI, chatID int64, player *botapi.User) *CoinToss {
+func NewCoinToss(bot *botapi.BotAPI, message *botapi.Message, player *botapi.User) *CoinToss {
 	return &CoinToss{
-		ID:       player.ID,
-		bot:      bot,
-		chatID:   chatID,
-		players:  []*botapi.User{player, nil},
-		chooses:  -1,
-		nextMove: "request",
+		ID:        player.ID,
+		bot:       bot,
+		chatID:    message.Chat.ID,
+		messageID: message.MessageID,
+		players:   []*botapi.User{player, nil},
+		chooses:   -1,
+		nextMove:  "request",
+		updated:   time.Now(),
 	}
 }
 
@@ -84,54 +113,60 @@ func (ct *CoinToss) GetChosen() *botapi.User {
 	return ct.players[ct.chooses]
 }
 
-func (ct *CoinToss) RequestToss() (err error) {
+func (ct *CoinToss) RequestToss(query *botapi.CallbackQuery) (err error) {
 	if ct.nextMove != "request" {
 		return
 	}
 
-	msg := ct.newMessage(util.AtUser(ct.players[0]) + " wants to toss a coin...")
-	msg.ReplyMarkup = botapi.NewInlineKeyboardMarkup(
-		botapi.NewInlineKeyboardRow(
-			botapi.NewInlineKeyboardButtonData("Play!", ct.getButtonData("accept")),
+	msg := ct.newMessageUpdate(
+		util.AtUser(ct.players[0])+" wants to toss a coin...",
+		botapi.NewInlineKeyboardMarkup(
+			botapi.NewInlineKeyboardRow(
+				botapi.NewInlineKeyboardButtonData("Play!", ct.getButtonData("accept")),
+			),
 		),
 	)
 
 	_, err = ct.bot.Send(msg)
-
-	if err == nil {
-		ct.nextMove = "accept"
+	if err != nil {
+		log.Printf("Error in RequestToss(): %q", err.Error())
+		return
 	}
 
+	ct.next("accept", query.Message.MessageID)
 	return
 }
 
-func (ct *CoinToss) AcceptToss(player *botapi.User) (err error) {
+func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 	if ct.nextMove != "accept" {
 		return
 	}
 
-	ct.players[1] = player
+	ct.players[1] = query.From
 
-	msg := ct.newMessage(fmt.Sprintf("%s, heads or tails?", util.AtUser(ct.GetChosen())))
-	msg.ReplyMarkup = botapi.NewInlineKeyboardMarkup(
-		botapi.NewInlineKeyboardRow(
-			botapi.NewInlineKeyboardButtonData("Heads", ct.getButtonData("heads")),
-			botapi.NewInlineKeyboardButtonData("Tails", ct.getButtonData("tails")),
+	msg := ct.newMessageUpdate(
+		fmt.Sprintf("%s, heads or tails?", util.AtUser(ct.GetChosen())),
+		botapi.NewInlineKeyboardMarkup(
+			botapi.NewInlineKeyboardRow(
+				botapi.NewInlineKeyboardButtonData("Heads", ct.getButtonData("heads")),
+				botapi.NewInlineKeyboardButtonData("Tails", ct.getButtonData("tails")),
+			),
 		),
 	)
 
 	_, err = ct.bot.Send(msg)
-
-	if err == nil {
-		ct.nextMove = "toss"
+	if err != nil {
+		log.Printf("Error in AcceptToss(): %q", err.Error())
+		return
 	}
 
+	ct.next("toss", query.Message.MessageID)
 	return
 }
 
-func (ct *CoinToss) Toss(heads bool) {
+func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 	defer func() {
-		delete(running, ct.ID)
+		running.Delete(ct.ID)
 	}()
 
 	if ct.nextMove != "toss" {
@@ -143,10 +178,9 @@ func (ct *CoinToss) Toss(heads bool) {
 		choice = "heads"
 	}
 
-	var err error
-
 	_, err = ct.bot.Send(ct.newMessage(fmt.Sprintf("%s chooses %q ...", util.AtUser(ct.GetChosen()), choice)))
 	if err != nil {
+		log.Printf("Error in Toss(): %q", err.Error())
 		return
 	}
 
@@ -156,30 +190,43 @@ func (ct *CoinToss) Toss(heads bool) {
 		result = "heads"
 	}
 
-	_, err = ct.bot.Send(ct.newMessage(fmt.Sprintf("%s The coin lands... %q", ct.playerPrefix(), result)))
-	if err != nil {
-		return
-	}
-
 	winner := ct.players[0]
 	if (choice == result && ct.chooses != 0) || (choice != result && ct.chooses == 0) {
 		winner = ct.players[1]
 	}
 
-	ct.bot.Send(ct.newMessage(fmt.Sprintf(
-		"%s The winner is %s!",
-		ct.playerPrefix(),
-		util.AtUser(winner),
-	)))
+	_, err = ct.bot.Send(ct.newMessage(fmt.Sprintf(`
+		%s The coin lands... %q 
+
+		The winner is %s!
+	`, ct.playerPrefix(), result, util.AtUser(winner))))
+
+	if err != nil {
+		log.Printf("Error in Toss(): %q", err.Error())
+		return
+	}
+
+	return
+}
+
+func (ct *CoinToss) next(move string, messageID int) {
+	ct.nextMove = move
+	ct.messageID = messageID
+	ct.updated = time.Now()
 }
 
 func (ct *CoinToss) getButtonData(cmd string) string {
-	log.Printf("Data: %q", "games/cointoss/"+cmd+"/"+strconv.FormatInt(ct.ID, 10))
 	return "games/cointoss/" + cmd + "/" + strconv.FormatInt(ct.ID, 10)
 }
 
 func (ct *CoinToss) newMessage(text string) botapi.MessageConfig {
 	msg := botapi.NewMessage(ct.chatID, text)
+	msg.ParseMode = "Markdown"
+	return msg
+}
+
+func (ct *CoinToss) newMessageUpdate(text string, markup botapi.InlineKeyboardMarkup) botapi.EditMessageTextConfig {
+	msg := botapi.NewEditMessageTextAndMarkup(ct.chatID, ct.messageID, text, markup)
 	msg.ParseMode = "Markdown"
 	return msg
 }
