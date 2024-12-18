@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"time"
 
@@ -10,6 +11,10 @@ import (
 
 func SendBasic(bot *botapi.BotAPI, chatID int64, msg string) (err error) {
 	_, err = bot.Send(botapi.NewMessage(chatID, msg))
+	if err != nil {
+		log.Printf("Got error: %q, attempting to send %q:", err.Error(), msg)
+	}
+
 	return
 }
 
