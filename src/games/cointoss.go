@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/willmroliver/plathbot/src/apis"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
@@ -26,7 +26,7 @@ type CoinToss struct {
 
 var running = sync.Map{}
 
-func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd string) {
+func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd *apis.CallbackCmd) {
 	running.Range(func(key any, value any) (res bool) {
 		game := value.(*CoinToss)
 		if game.updated.Add(time.Minute*15).Compare(time.Now()) == -1 {
@@ -36,7 +36,9 @@ func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd string) 
 		return
 	})
 
-	if cmd == "" {
+	action := cmd.Get()
+
+	if action == "" {
 		_, exists := running.Load(query.From.ID)
 		if !exists {
 			game := NewCoinToss(bot, query.Message, query.From)
@@ -49,10 +51,7 @@ func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd string) 
 		return
 	}
 
-	parts := strings.Split(cmd, "/")
-	cmd = parts[0]
-	id, err := strconv.ParseInt(parts[1], 10, 64)
-
+	id, err := strconv.ParseInt(cmd.Next().Get(), 10, 64)
 	if err != nil {
 		log.Printf("Invalid game ID: %q", err.Error())
 		return
@@ -72,7 +71,7 @@ func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd string) 
 
 	defer game.mu.Unlock()
 
-	switch cmd {
+	switch action {
 	case "accept":
 		if game.AcceptToss(query) != nil {
 			running.Delete(game.ID)
@@ -82,7 +81,7 @@ func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd string) 
 			break
 		}
 
-		game.Toss(query, cmd == "heads")
+		game.Toss(query, action == "heads")
 	default:
 		break
 	}
@@ -119,12 +118,10 @@ func (ct *CoinToss) RequestToss(query *botapi.CallbackQuery) (err error) {
 	}
 
 	msg := ct.newMessageUpdate(
-		util.AtUser(ct.players[0])+" wants to toss a coin...",
-		botapi.NewInlineKeyboardMarkup(
-			botapi.NewInlineKeyboardRow(
-				botapi.NewInlineKeyboardButtonData("Play!", ct.getButtonData("accept")),
-			),
-		),
+		util.AtUserString(ct.players[0])+" wants to toss a coin...",
+		util.InlineKeyboard([]map[string]string{{
+			"Play!": ct.getCmd("accept"),
+		}}),
 	)
 
 	_, err = ct.bot.Send(msg)
@@ -145,13 +142,11 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 	ct.players[1] = query.From
 
 	msg := ct.newMessageUpdate(
-		fmt.Sprintf("%s, heads or tails?", util.AtUser(ct.GetChosen())),
-		botapi.NewInlineKeyboardMarkup(
-			botapi.NewInlineKeyboardRow(
-				botapi.NewInlineKeyboardButtonData("Heads", ct.getButtonData("heads")),
-				botapi.NewInlineKeyboardButtonData("Tails", ct.getButtonData("tails")),
-			),
-		),
+		fmt.Sprintf("%s, heads or tails?", util.AtUserString(ct.GetChosen())),
+		util.InlineKeyboard([]map[string]string{{
+			"Heads": ct.getCmd("heads"),
+			"Tails": ct.getCmd("tails"),
+		}}),
 	)
 
 	_, err = ct.bot.Send(msg)
@@ -178,7 +173,7 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 		choice = "heads"
 	}
 
-	_, err = ct.bot.Send(ct.newMessage(fmt.Sprintf("%s chooses %q ...", util.AtUser(ct.GetChosen()), choice)))
+	_, err = ct.bot.Send(ct.newMessage(fmt.Sprintf("%s chooses %q ...", util.AtUserString(ct.GetChosen()), choice)))
 	if err != nil {
 		log.Printf("Error in Toss(): %q", err.Error())
 		return
@@ -199,7 +194,7 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 		%s The coin lands... %q 
 
 		The winner is %s!
-	`, ct.playerPrefix(), result, util.AtUser(winner))))
+	`, ct.playerPrefix(), result, util.AtUserString(winner))))
 
 	if err != nil {
 		log.Printf("Error in Toss(): %q", err.Error())
@@ -215,22 +210,22 @@ func (ct *CoinToss) next(move string, messageID int) {
 	ct.updated = time.Now()
 }
 
-func (ct *CoinToss) getButtonData(cmd string) string {
+func (ct *CoinToss) getCmd(cmd string) string {
 	return "games/cointoss/" + cmd + "/" + strconv.FormatInt(ct.ID, 10)
 }
 
 func (ct *CoinToss) newMessage(text string) botapi.MessageConfig {
 	msg := botapi.NewMessage(ct.chatID, text)
-	msg.ParseMode = "Markdown"
+	msg.ParseMode = botapi.ModeMarkdown
 	return msg
 }
 
 func (ct *CoinToss) newMessageUpdate(text string, markup botapi.InlineKeyboardMarkup) botapi.EditMessageTextConfig {
 	msg := botapi.NewEditMessageTextAndMarkup(ct.chatID, ct.messageID, text, markup)
-	msg.ParseMode = "Markdown"
+	msg.ParseMode = botapi.ModeMarkdown
 	return msg
 }
 
 func (ct *CoinToss) playerPrefix() string {
-	return fmt.Sprintf("%s vs %s:", util.AtUser(ct.players[0]), util.AtUser(ct.players[1]))
+	return fmt.Sprintf("%s vs %s:", util.AtUserString(ct.players[0]), util.AtUserString(ct.players[1]))
 }

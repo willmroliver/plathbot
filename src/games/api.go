@@ -1,32 +1,32 @@
 package games
 
 import (
+	"fmt"
 	"log"
-	"strings"
+	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/willmroliver/plathbot/src/apis"
+	"github.com/willmroliver/plathbot/src/util"
 )
 
-var api = map[string]func(*botapi.BotAPI, *botapi.CallbackQuery, string){
-	"cointoss": CointossQuery,
-}
-
-func HandleCallbackQuery(bot *botapi.BotAPI, m *botapi.CallbackQuery, cmd string) {
-	for key, action := range api {
-		if strings.HasPrefix(cmd, key+"/") {
-			action(bot, m, cmd[len(key)+1:])
-			break
-		}
+func HandleCallbackQuery(bot *botapi.BotAPI, m *botapi.CallbackQuery, cmd *apis.CallbackCmd) {
+	api := apis.Callback{
+		"cointoss": CointossQuery,
 	}
+
+	api.Next(bot, m, cmd)
 }
 
-func SendMenu(bot *botapi.BotAPI, m *botapi.Message) (err error) {
+func SendOptions(bot *botapi.BotAPI, m *botapi.Message) (err error) {
+	if !util.TryLockFor(fmt.Sprintf("%d games", m.Chat.ID), time.Second*15) {
+		return nil
+	}
+
 	msg := botapi.NewMessage(m.Chat.ID, "Want to play?")
-	msg.ReplyMarkup = botapi.NewInlineKeyboardMarkup(
-		botapi.NewInlineKeyboardRow(
-			botapi.NewInlineKeyboardButtonData("Coin Toss", "games/cointoss/"),
-		),
-	)
+	msg.ReplyMarkup = util.InlineKeyboard([]map[string]string{
+		{"Coin Toss": getCmd("cointoss")},
+	})
 
 	_, err = bot.Send(msg)
 
@@ -35,4 +35,8 @@ func SendMenu(bot *botapi.BotAPI, m *botapi.Message) (err error) {
 	}
 
 	return
+}
+
+func getCmd(name string) string {
+	return fmt.Sprintf("games/%s/", name)
 }
