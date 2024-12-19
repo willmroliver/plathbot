@@ -10,7 +10,7 @@ import (
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/willmroliver/plathbot/src/io"
+	"github.com/willmroliver/plathbot/src/server"
 )
 
 const (
@@ -54,6 +54,13 @@ func main() {
 
 	u := botapi.NewUpdate(0)
 	u.Timeout = 60
+	u.AllowedUpdates = []string{
+		"message",
+		"callback_query",
+		"inline_query",
+		"message_reaction",
+		"message_reaction_count",
+	}
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -74,7 +81,7 @@ func receiveUpdates(ctx context.Context, updates botapi.UpdatesChannel) {
 		case <-ctx.Done():
 			return
 		case update := <-updates:
-			io.NewBotContext(bot, update).HandleUpdate()
+			server.NewContext(bot, update).HandleUpdate()
 		}
 	}
 }
