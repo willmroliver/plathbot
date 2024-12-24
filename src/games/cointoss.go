@@ -27,13 +27,13 @@ type CoinToss struct {
 var running = sync.Map{}
 
 func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd *apis.CallbackCmd) {
-	running.Range(func(key any, value any) (res bool) {
+	running.Range(func(key any, value any) bool {
 		game := value.(*CoinToss)
 		if game.updated.Add(time.Minute*15).Compare(time.Now()) == -1 {
 			running.Delete(key)
 		}
 
-		return
+		return true
 	})
 
 	action := cmd.Get()
@@ -211,7 +211,7 @@ func (ct *CoinToss) next(move string, messageID int) {
 }
 
 func (ct *CoinToss) getCmd(cmd string) string {
-	return "games/cointoss/" + cmd + "/" + strconv.FormatInt(ct.ID, 10)
+	return fmt.Sprintf("games/cointoss/%s/%d", cmd, ct.ID)
 }
 
 func (ct *CoinToss) newMessage(text string) botapi.MessageConfig {

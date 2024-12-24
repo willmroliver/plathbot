@@ -16,6 +16,22 @@ func SendBasic(bot *botapi.BotAPI, chatID int64, msg string) (err error) {
 	return
 }
 
+func SendConfig(bot *botapi.BotAPI, msg *botapi.MessageConfig) (err error) {
+	if _, err = bot.Send(*msg); err != nil {
+		log.Printf("Got error: %q, attempting to send %q:", err.Error(), msg.Text)
+	}
+
+	return
+}
+
+func SendUpdate(bot *botapi.BotAPI, msg *botapi.EditMessageTextConfig) (err error) {
+	if _, err = bot.Send(*msg); err != nil {
+		log.Printf("Got error: %q, attempting to send %q", err.Error(), msg.Text)
+	}
+
+	return
+}
+
 func RequestBasic(bot *botapi.BotAPI, query *botapi.InlineQuery, title, msg string) (err error) {
 	a := botapi.NewInlineQueryResultArticleHTML(query.ID, title, msg)
 	c := botapi.InlineConfig{

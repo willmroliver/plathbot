@@ -7,6 +7,8 @@ import (
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/willmroliver/plathbot/src/account"
+	"github.com/willmroliver/plathbot/src/apis"
 	"github.com/willmroliver/plathbot/src/games"
 	"github.com/willmroliver/plathbot/src/util"
 )
@@ -16,44 +18,53 @@ const (
 	AdoptLink  string = "https://gifts.worldwildlife.org/gift-center/gifts/species-adoptions/duck-billed-platypus"
 )
 
-var commandAPI = map[string]func(*botapi.BotAPI, *botapi.Message) error{
-	"/start": sendHelp,
-	"/help":  sendHelp,
-	"/fact":  sendFact,
-	"/games": games.SendOptions,
-	"/adopt": func(bot *botapi.BotAPI, m *botapi.Message) (err error) {
-		if !util.TryLockFor(fmt.Sprintf("%d adopt&donate", m.Chat.ID), time.Second*3) {
-			return nil
-		}
-
-		return util.SendBasic(bot, m.Chat.ID, AdoptLink)
-	},
-	"/donate": func(bot *botapi.BotAPI, m *botapi.Message) (err error) {
-		if !util.TryLockFor(fmt.Sprintf("%d adopt&donate", m.Chat.ID), time.Second*3) {
-			return nil
-		}
-
-		return util.SendBasic(bot, m.Chat.ID, DonateLink)
-	},
-}
-
-var queryAPI = map[string]func(*botapi.BotAPI, *botapi.InlineQuery) error{
-	"fact":   requestFact,
-	"adopt":  requestAdopt,
-	"donate": requestDonate,
-}
-
 func HandleCommand(bot *botapi.BotAPI, message *botapi.Message, cmd string) error {
-	if action, exists := commandAPI[cmd]; exists {
+	api := map[string]func(*botapi.BotAPI, *botapi.Message) error{
+		"/start":   sendHelp,
+		"/help":    sendHelp,
+		"/fact":    sendFact,
+		"/account": account.SendOptions,
+		"/games":   games.SendOptions,
+		"/adopt": func(bot *botapi.BotAPI, m *botapi.Message) (err error) {
+			if !util.TryLockFor(fmt.Sprintf("%d adopt&donate", m.Chat.ID), time.Second*3) {
+				return nil
+			}
+
+			return util.SendBasic(bot, m.Chat.ID, AdoptLink)
+		},
+		"/donate": func(bot *botapi.BotAPI, m *botapi.Message) (err error) {
+			if !util.TryLockFor(fmt.Sprintf("%d adopt&donate", m.Chat.ID), time.Second*3) {
+				return nil
+			}
+
+			return util.SendBasic(bot, m.Chat.ID, DonateLink)
+		},
+	}
+
+	if action, exists := api[cmd]; exists {
 		return action(bot, message)
 	}
 
 	return errors.New("command does not exist")
 }
 
-func HandleInlineQuery(bot *botapi.BotAPI, message *botapi.InlineQuery) error {
+func HandleCallbackQuery(bot *botapi.BotAPI, message *botapi.CallbackQuery, cmd string) {
+	api := apis.Callback{
+		"account": account.HandleCallbackQuery,
+		"games":   games.HandleCallbackQuery,
+	}
 
-	if action, exists := queryAPI[message.Query]; exists {
+	go api.Next(bot, message, apis.NewCallbackCmd(cmd))
+}
+
+func HandleInlineQuery(bot *botapi.BotAPI, message *botapi.InlineQuery) error {
+	api := map[string]func(*botapi.BotAPI, *botapi.InlineQuery) error{
+		"fact":   requestFact,
+		"adopt":  requestAdopt,
+		"donate": requestDonate,
+	}
+
+	if action, exists := api[message.Query]; exists {
 		if err := action(bot, message); err != nil {
 			log.Printf("An error ocurred: %s", err.Error())
 			return err
@@ -77,6 +88,7 @@ func sendHelp(bot *botapi.BotAPI, m *botapi.Message) (err error) {
 	🐾 /plath@fact 🧠
 	🐾 /plath@adopt 🐼
 	🐾 /plath@donate 💸
+	🐾 /plath@account 💻
 	🐾 /plath@games 🎮
 
 	Telegram won't let me spam group chats, so some of these have rate limits... Sorry!
@@ -91,6 +103,7 @@ func sendHelp(bot *botapi.BotAPI, m *botapi.Message) (err error) {
 	🐾 /fact 🧠		- Just for fun :)
 	🐾 /adopt 🐼 	- Adopt a platypus
 	🐾 /donate 💸	- Support a good cause
+	🐾 /account 💻	- Manage your account
 	🐾 /games 🎮	- Let's goooo
 	`
 
