@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	d "github.com/willmroliver/plathbot/src/db"
 	"gorm.io/gorm"
 )
 
@@ -12,6 +13,15 @@ type Repo struct {
 }
 
 func NewRepo(db *gorm.DB) *Repo {
+	if db == nil {
+		conn, err := d.Open("test.db")
+		if err != nil {
+			panic(fmt.Sprintf("Error opening 'test.db': %q", err.Error()))
+		}
+
+		return &Repo{db: conn}
+	}
+
 	return &Repo{db}
 }
 
@@ -23,7 +33,7 @@ func (r *Repo) Save(m any) (err error) {
 	return
 }
 
-func (r *Repo) GetWhere(m any, col string, val any) (err error) {
+func (r *Repo) GetBy(m any, col string, val any) (err error) {
 	if err = r.db.Where(fmt.Sprintf("%s = ?", col), val).First(m).Error; err != nil {
 		log.Printf("Repo Get() error: %q", err.Error())
 	}
@@ -32,5 +42,5 @@ func (r *Repo) GetWhere(m any, col string, val any) (err error) {
 }
 
 func (r *Repo) Get(m any, id any) error {
-	return r.GetWhere(m, "id", id)
+	return r.GetBy(m, "id", id)
 }

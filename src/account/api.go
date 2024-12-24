@@ -19,8 +19,15 @@ func HandleCallbackQuery(bot *botapi.BotAPI, m *botapi.CallbackQuery, cmd *apis.
 }
 
 func SendOptions(bot *botapi.BotAPI, m *botapi.Message) (err error) {
-	if !util.TryLockFor(fmt.Sprintf("%d games", m.Chat.ID), time.Second*15) {
-		return nil
+	if m.Chat.Type != "private" {
+		if !util.TryLockFor(fmt.Sprintf("%d games", m.Chat.ID), time.Second*15) {
+			return nil
+		}
+
+		msg := botapi.NewMessage(m.Chat.ID, "DM to manage your account - "+util.AtBotString(bot))
+		msg.ParseMode = "Markdown"
+
+		util.SendConfig(bot, &msg)
 	}
 
 	msg := botapi.NewMessage(m.Chat.ID, "Your Account")
@@ -29,7 +36,6 @@ func SendOptions(bot *botapi.BotAPI, m *botapi.Message) (err error) {
 	})
 
 	_, err = bot.Send(msg)
-
 	if err != nil {
 		log.Printf("Error sending menu: %q", err.Error())
 	}

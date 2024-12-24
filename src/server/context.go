@@ -5,9 +5,7 @@ import (
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/willmroliver/plathbot/src/apis"
 	"github.com/willmroliver/plathbot/src/core"
-	"github.com/willmroliver/plathbot/src/games"
 )
 
 type Context struct {
@@ -99,11 +97,7 @@ func (ctx *Context) HandleCallbackQuery() {
 		return
 	}
 
-	api := apis.Callback{
-		"games": games.HandleCallbackQuery,
-	}
-
-	go api.Next(ctx.bot, m, apis.NewCallbackCmd(m.Data))
+	core.HandleCallbackQuery(ctx.bot, ctx.update.CallbackQuery, m.Data)
 }
 
 func (ctx *Context) HandleInlineQuery() {
