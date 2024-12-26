@@ -1,21 +1,24 @@
-package server
+package core
 
 import (
+	"errors"
 	"log"
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/willmroliver/plathbot/src/core"
+	"github.com/willmroliver/plathbot/src/model"
+	"github.com/willmroliver/plathbot/src/server"
+	"gorm.io/gorm"
 )
 
 type Context struct {
-	bot    *botapi.BotAPI
-	update botapi.Update
+	server *server.Server
+	update *botapi.Update
 }
 
-func NewContext(bot *botapi.BotAPI, update botapi.Update) *Context {
+func NewContext(server *server.Server, update *botapi.Update) *Context {
 	return &Context{
-		bot,
+		server,
 		update,
 	}
 }
@@ -40,9 +43,9 @@ func (ctx *Context) HandleMessage() {
 		return
 	}
 
-	log.Printf("Received %q from %s", text, from.FirstName)
-
 	if m.Chat.Type != "private" {
+		ctx.addXP(from, 10)
+
 		cmd, valid := strings.CutPrefix(text, "/plath@")
 		if !valid {
 			return
@@ -55,7 +58,7 @@ func (ctx *Context) HandleMessage() {
 
 	switch {
 	case strings.HasPrefix(text, "/"):
-		err = core.HandleCommand(ctx.bot, m, text)
+		err = handleCommand(ctx.server, m, text)
 	default:
 		break
 	}
@@ -67,27 +70,17 @@ func (ctx *Context) HandleMessage() {
 
 func (ctx *Context) HandleMessageReaction() {
 	m := ctx.update.MessageReaction
-	if m == nil {
+	if m == nil || m.User == nil || m.Chat.Type == "private" {
 		return
 	}
 
-	u := m.User
-	if u == nil {
-		return
-	}
-
-	reacts := map[string][]*botapi.ReactionType{
-		"was": m.OldReaction,
-		"is":  m.NewReaction,
-	}
-
-	for label, values := range reacts {
-		value := ""
-		if len(values) > 0 {
-			value = values[0].Emoji
-		}
-
-		log.Printf("%s: %s", strings.ToTitle(label), value)
+	switch {
+	case len(m.OldReaction) < len(m.NewReaction):
+		ctx.addXP(m.User, 10)
+	case len(m.OldReaction) > len(m.NewReaction):
+		ctx.addXP(m.User, -10)
+	default:
+		break
 	}
 }
 
@@ -97,13 +90,29 @@ func (ctx *Context) HandleCallbackQuery() {
 		return
 	}
 
-	core.HandleCallbackQuery(ctx.bot, ctx.update.CallbackQuery, m.Data)
+	handleCallbackQuery(ctx.server, ctx.update.CallbackQuery, m.Data)
 }
 
 func (ctx *Context) HandleInlineQuery() {
 	if m := ctx.update.InlineQuery; m != nil {
-		if err := core.HandleInlineQuery(ctx.bot, m); err != nil {
+		if err := handleInlineQuery(ctx.server, m); err != nil {
 			log.Printf("HandleInlineQuery error: %q", err.Error())
 		}
 	}
+}
+
+func (ctx *Context) addXP(u *botapi.User, xp int) (user *model.User, err error) {
+	user = model.NewUser(u)
+
+	err = ctx.server.DB.
+		Model(u).
+		Where("id = ?", u.ID).
+		UpdateColumn("xp", gorm.Expr("xp + ?", xp)).
+		Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Printf("Error opening user %d record: %q", u.ID, err.Error())
+	}
+
+	return
 }
