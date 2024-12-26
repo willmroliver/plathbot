@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -34,7 +35,9 @@ func (r *Repo) Save(m any) (err error) {
 }
 
 func (r *Repo) GetBy(m any, col string, val any) (err error) {
-	if err = r.db.Where(fmt.Sprintf("%s = ?", col), val).First(m).Error; err != nil {
+	err = r.db.Where(fmt.Sprintf("%s = ?", col), val).First(m).Error
+
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Printf("Repo Get() error: %q", err.Error())
 	}
 

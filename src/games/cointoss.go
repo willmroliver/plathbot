@@ -9,27 +9,26 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/apis"
+	"github.com/willmroliver/plathbot/src/server"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
 type CoinToss struct {
-	ID        int64
-	bot       *botapi.BotAPI
-	chatID    int64
-	messageID int
-	players   []*botapi.User
-	chooses   int
-	nextMove  string
-	mu        sync.Mutex
-	updated   time.Time
+	*apis.Interaction[string]
+	ID      int64
+	bot     *botapi.BotAPI
+	players []*botapi.User
+	chooses int
+	mu      sync.Mutex
+	updated time.Time
 }
 
 var running = sync.Map{}
 
-func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd *apis.CallbackCmd) {
+func CointossQuery(s *server.Server, query *botapi.CallbackQuery, cmd *apis.CallbackCmd) {
 	running.Range(func(key any, value any) bool {
 		game := value.(*CoinToss)
-		if game.updated.Add(time.Minute*15).Compare(time.Now()) == -1 {
+		if game.updated.Add(time.Minute*5).Compare(time.Now()) == -1 {
 			running.Delete(key)
 		}
 
@@ -41,7 +40,7 @@ func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd *apis.Ca
 	if action == "" {
 		_, exists := running.Load(query.From.ID)
 		if !exists {
-			game := NewCoinToss(bot, query.Message, query.From)
+			game := NewCoinToss(s.Bot, query.Message, query.From)
 
 			if game.RequestToss(query) == nil {
 				running.Store(game.ID, game)
@@ -93,14 +92,12 @@ func CointossQuery(bot *botapi.BotAPI, query *botapi.CallbackQuery, cmd *apis.Ca
 
 func NewCoinToss(bot *botapi.BotAPI, message *botapi.Message, player *botapi.User) *CoinToss {
 	return &CoinToss{
-		ID:        player.ID,
-		bot:       bot,
-		chatID:    message.Chat.ID,
-		messageID: message.MessageID,
-		players:   []*botapi.User{player, nil},
-		chooses:   -1,
-		nextMove:  "request",
-		updated:   time.Now(),
+		Interaction: apis.NewInteraction[string](message, "request"),
+		ID:          player.ID,
+		bot:         bot,
+		players:     []*botapi.User{player, nil},
+		chooses:     -1,
+		updated:     time.Now(),
 	}
 }
 
@@ -113,35 +110,34 @@ func (ct *CoinToss) GetChosen() *botapi.User {
 }
 
 func (ct *CoinToss) RequestToss(query *botapi.CallbackQuery) (err error) {
-	if ct.nextMove != "request" {
+	if !ct.Is("request") {
 		return
 	}
 
-	msg := ct.newMessageUpdate(
+	msg := ct.NewMessageUpdate(
 		util.AtUserString(ct.players[0])+" wants to toss a coin...",
 		util.InlineKeyboard([]map[string]string{{
 			"Play!": ct.getCmd("accept"),
 		}}),
 	)
 
-	_, err = ct.bot.Send(msg)
-	if err != nil {
+	if _, err = ct.bot.Send(msg); err != nil {
 		log.Printf("Error in RequestToss(): %q", err.Error())
 		return
 	}
 
-	ct.next("accept", query.Message.MessageID)
+	ct.Mutate("accept", query.Message)
 	return
 }
 
 func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
-	if ct.nextMove != "accept" {
+	if !ct.Is("accept") {
 		return
 	}
 
 	ct.players[1] = query.From
 
-	msg := ct.newMessageUpdate(
+	msg := ct.NewMessageUpdate(
 		fmt.Sprintf("%s, heads or tails?", util.AtUserString(ct.GetChosen())),
 		util.InlineKeyboard([]map[string]string{{
 			"Heads": ct.getCmd("heads"),
@@ -149,13 +145,12 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 		}}),
 	)
 
-	_, err = ct.bot.Send(msg)
-	if err != nil {
+	if _, err = ct.bot.Send(msg); err != nil {
 		log.Printf("Error in AcceptToss(): %q", err.Error())
 		return
 	}
 
-	ct.next("toss", query.Message.MessageID)
+	ct.Mutate("toss", query.Message)
 	return
 }
 
@@ -164,7 +159,7 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 		running.Delete(ct.ID)
 	}()
 
-	if ct.nextMove != "toss" {
+	if !ct.Is("toss") {
 		return
 	}
 
@@ -173,8 +168,9 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 		choice = "heads"
 	}
 
-	_, err = ct.bot.Send(ct.newMessage(fmt.Sprintf("%s chooses %q ...", util.AtUserString(ct.GetChosen()), choice)))
-	if err != nil {
+	msg := ct.NewMessage(fmt.Sprintf("%s chooses %q ...", util.AtUserString(ct.GetChosen()), choice))
+
+	if _, err = ct.bot.Send(msg); err != nil {
 		log.Printf("Error in Toss(): %q", err.Error())
 		return
 	}
@@ -190,13 +186,13 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 		winner = ct.players[1]
 	}
 
-	_, err = ct.bot.Send(ct.newMessage(fmt.Sprintf(`
+	msg = ct.NewMessage(fmt.Sprintf(`
 		%s The coin lands... %q 
 
 		The winner is %s!
-	`, ct.playerPrefix(), result, util.AtUserString(winner))))
+	`, ct.playerPrefix(), result, util.AtUserString(winner)))
 
-	if err != nil {
+	if _, err = ct.bot.Send(msg); err != nil {
 		log.Printf("Error in Toss(): %q", err.Error())
 		return
 	}
@@ -204,26 +200,8 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 	return
 }
 
-func (ct *CoinToss) next(move string, messageID int) {
-	ct.nextMove = move
-	ct.messageID = messageID
-	ct.updated = time.Now()
-}
-
 func (ct *CoinToss) getCmd(cmd string) string {
 	return fmt.Sprintf("games/cointoss/%s/%d", cmd, ct.ID)
-}
-
-func (ct *CoinToss) newMessage(text string) botapi.MessageConfig {
-	msg := botapi.NewMessage(ct.chatID, text)
-	msg.ParseMode = botapi.ModeMarkdown
-	return msg
-}
-
-func (ct *CoinToss) newMessageUpdate(text string, markup botapi.InlineKeyboardMarkup) botapi.EditMessageTextConfig {
-	msg := botapi.NewEditMessageTextAndMarkup(ct.chatID, ct.messageID, text, markup)
-	msg.ParseMode = botapi.ModeMarkdown
-	return msg
 }
 
 func (ct *CoinToss) playerPrefix() string {

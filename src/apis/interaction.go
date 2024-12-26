@@ -7,20 +7,19 @@ import (
 )
 
 type Interaction[T comparable] struct {
-	state     T
-	time      time.Time
-	chatID    int64
-	messageID int
+	state T
+	time  time.Time
+	msg   *botapi.Message
 }
 
 func NewInteraction[T comparable](msg *botapi.Message, state T) *Interaction[T] {
-	return &Interaction[T]{state, time.Now(), msg.Chat.ID, msg.MessageID}
+	return &Interaction[T]{state, time.Now(), msg}
 }
 
 func (i *Interaction[T]) Mutate(state T, m *botapi.Message) {
 	i.state = state
 	i.time = time.Now()
-	i.messageID = m.MessageID
+	i.msg = m
 }
 
 func (i *Interaction[T]) Is(state T) bool {
@@ -32,13 +31,13 @@ func (i *Interaction[T]) Age() time.Duration {
 }
 
 func (i *Interaction[T]) NewMessage(text string) botapi.MessageConfig {
-	msg := botapi.NewMessage(i.chatID, text)
+	msg := botapi.NewMessage(i.msg.Chat.ID, text)
 	msg.ParseMode = botapi.ModeMarkdown
 	return msg
 }
 
 func (i *Interaction[T]) NewMessageUpdate(text string, markup botapi.InlineKeyboardMarkup) botapi.EditMessageTextConfig {
-	msg := botapi.NewEditMessageTextAndMarkup(i.chatID, i.messageID, text, markup)
+	msg := botapi.NewEditMessageTextAndMarkup(i.msg.Chat.ID, i.msg.MessageID, text, markup)
 	msg.ParseMode = botapi.ModeMarkdown
 	return msg
 }
