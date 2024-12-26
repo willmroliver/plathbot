@@ -1,13 +1,13 @@
-package util_test
+package ds_test
 
 import (
 	"testing"
 
-	"github.com/willmroliver/plathbot/src/util"
+	"github.com/willmroliver/plathbot/src/ds"
 )
 
 func TestPriorityQueue(t *testing.T) {
-	pq := util.NewPriorityQueue[int](func(a, b int) int {
+	pq := ds.NewPriorityQueue[int](func(a, b int) int {
 		if a > b {
 			return 1
 		}
