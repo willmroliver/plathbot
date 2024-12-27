@@ -1,6 +1,8 @@
 package api
 
-import botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+import (
+	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
 
 type CommandAction func(*Context, *botapi.Message)
 
