@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -72,7 +73,7 @@ var (
 )
 
 func NewServer() *api.Server {
-	conn, err := db.Open("test.db")
+	conn, err := db.Open(os.Getenv("DB_NAME"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to database %q: %q", "test.db", err.Error()))
 	}
