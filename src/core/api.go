@@ -35,6 +35,9 @@ var (
 			"/start": sendHelp,
 			"/help":  sendHelp,
 			"/fact":  sendFact,
+			"/hub": func(c *api.Context, m *botapi.Message) {
+				callbackAPI.Expose(c, nil)
+			},
 			"/account": func(c *api.Context, m *botapi.Message) {
 				accountAPI.Expose(c, nil)
 			},
@@ -55,11 +58,16 @@ var (
 	}
 
 	callbackAPI = &api.CallbackAPI{
-		Title: "PlathHub",
+		Title: "🚀🌖 P1ath Hub",
 		Actions: map[string]api.CallbackAction{
 			accountAPI.Path: accountAPI.Select,
 			gamesAPI.Path:   gamesAPI.Select,
 		},
+		PublicOptions: []map[string]string{
+			{accountAPI.Title: accountAPI.Path},
+			{gamesAPI.Title: gamesAPI.Path},
+		},
+		PublicOnly: true,
 	}
 )
 
@@ -84,16 +92,15 @@ func sendHelp(c *api.Context, m *botapi.Message) {
 
 	Wanna talk? %s
 	
-	Some things I can do in public chats: try them!
+	Public commands: try em!
 	
-	🐾 /plath@help 😣
-	🐾 /plath@fact 🧠
-	🐾 /plath@adopt 🐼
-	🐾 /plath@donate 💸
-	🐾 /plath@account 💻
-	🐾 /plath@games 🎮
-
-	Telegram won't let me spam group chats, so some of these have rate limits... Sorry!
+	🐾 /hub 🚀🌖
+	🐾 /help 😣
+	🐾 /fact 🧠
+	🐾 /adopt 🐼
+	🐾 /donate 💸
+	🐾 /account 💻
+	🐾 /games 🎮
 	`, util.AtBotString(c.Bot))
 
 	private := `
@@ -101,6 +108,7 @@ func sendHelp(c *api.Context, m *botapi.Message) {
 
 	What can I help you with?
 	
+	🐾 /hub 🚀   	- We all prefer buttons
 	🐾 /help 😣		- You've made it this far
 	🐾 /fact 🧠		- Just for fun :)
 	🐾 /adopt 🐼 	- Adopt a platypus

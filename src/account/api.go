@@ -28,6 +28,7 @@ func API() *api.CallbackAPI {
 			PrivateOptions: []map[string]string{
 				{WalletTitle: "wallet"},
 				{XPTitle: "xp"},
+				{"👈 Back": ".."},
 			},
 			PrivateOnly: true,
 		},

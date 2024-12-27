@@ -18,7 +18,7 @@ func XPQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.CallbackCmd) 
 	msg := botapi.NewEditMessageText(
 		c.Chat.ID,
 		c.Message.MessageID,
-		fmt.Sprintf("📊 Current XP: %d", c.User.XP),
+		fmt.Sprintf("📊 Current XP: %d", c.GetUser().XP),
 	)
 	msg.ReplyMarkup = &opts
 
