@@ -1,26 +1,29 @@
 package games
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/willmroliver/plathbot/src/apis"
 )
 
-func API() *apis.Callback {
-	return &apis.Callback{
-		Title: "🎮 Games",
-		Actions: map[string]apis.CallbackAction{
-			"cointoss": CointossQuery,
-		},
-		PublicCooldown: time.Second * 15,
-		PublicOptions: []map[string]string{
-			{"🪙 Cointoss": getCmd("cointoss")},
-		},
-		PublicOnly: true,
-	}
-}
+const (
+	Title = "🎮 Games"
+	Path  = "games"
+)
 
-func getCmd(name string) string {
-	return fmt.Sprintf("games/%s/", name)
+func API() *apis.Callback {
+	return apis.NewCallback(
+		Title,
+		Path,
+		&apis.CallbackConfig{
+			Actions: map[string]apis.CallbackAction{
+				"cointoss": CointossQuery,
+			},
+			PublicCooldown: time.Second * 15,
+			PublicOptions: []map[string]string{
+				{"🪙 Cointoss": "cointoss"},
+			},
+			PublicOnly: true,
+		},
+	)
 }
