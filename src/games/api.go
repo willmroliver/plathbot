@@ -19,9 +19,10 @@ func API() *api.CallbackAPI {
 			Actions: map[string]api.CallbackAction{
 				"cointoss": CointossQuery,
 			},
-			PublicCooldown: time.Second * 15,
+			PublicCooldown: time.Second * 3,
 			PublicOptions: []map[string]string{
-				{"🪙 Cointoss": "cointoss"},
+				{CointossTitle: "cointoss"},
+				{"👈 Back": ".."},
 			},
 			PublicOnly: true,
 		},

@@ -77,19 +77,8 @@ func (api *CallbackAPI) Expose(c *Context, m *botapi.CallbackQuery) {
 		return
 	}
 
-	if api.PublicOnly && private {
-		msg := botapi.NewMessage(
-			c.Chat.ID,
-			fmt.Sprintf("%q - Unavailable in DMs", api.Title),
-		)
-		msg.ParseMode = "Markdown"
-		util.SendConfig(c.Bot, &msg)
-
-		return
-	}
-
 	opts := &api.PublicOptions
-	if private {
+	if private && !api.PublicOnly {
 		opts = &api.PrivateOptions
 	}
 
@@ -122,7 +111,7 @@ func (api *CallbackAPI) resolveOpts(opts []map[string]string) (res []map[string]
 				if j := strings.LastIndex(api.Path, "/"); j != -1 {
 					res[i][k] = strings.Join([]string{api.Path[:j], v}, "/")
 				} else {
-					res[i][k] = ""
+					res[i][k] = "/"
 				}
 
 				continue

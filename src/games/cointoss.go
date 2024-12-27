@@ -12,6 +12,11 @@ import (
 	"github.com/willmroliver/plathbot/src/util"
 )
 
+const (
+	CointossTitle = "🪙 Cointoss"
+	CointossPath  = Path + "/cointoss"
+)
+
 type CoinToss struct {
 	*api.Interaction[string]
 	ID      int64
@@ -79,7 +84,7 @@ func CointossQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.Callbac
 			break
 		}
 
-		game.Toss(query, action == "heads")
+		game.Toss(c, query, action == "heads")
 	default:
 		break
 	}
@@ -113,12 +118,9 @@ func (ct *CoinToss) RequestToss(query *botapi.CallbackQuery) (err error) {
 		return
 	}
 
-	msg := ct.NewMessageUpdate(
-		util.AtUserString(ct.players[0])+" wants to toss a coin...",
-		util.InlineKeyboard([]map[string]string{{
-			"Play!": ct.getCmd("accept"),
-		}}),
-	)
+	markup := util.InlineKeyboard([]map[string]string{{"Play!": ct.getCmd("accept")}})
+
+	msg := ct.NewMessageUpdate(util.AtUserString(ct.players[0])+" wants to toss a coin...", &markup)
 
 	if _, err = ct.bot.Send(msg); err != nil {
 		log.Printf("Error in RequestToss(): %q", err.Error())
@@ -136,13 +138,12 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 
 	ct.players[1] = query.From
 
-	msg := ct.NewMessageUpdate(
-		fmt.Sprintf("%s, heads or tails?", util.AtUserString(ct.GetChosen())),
-		util.InlineKeyboard([]map[string]string{{
-			"🙉 Heads": ct.getCmd("heads"),
-			"🐒 Tails": ct.getCmd("tails"),
-		}}),
-	)
+	markup := util.InlineKeyboard([]map[string]string{{
+		"🙉 Heads": ct.getCmd("heads"),
+		"🐒 Tails": ct.getCmd("tails"),
+	}})
+
+	msg := ct.NewMessageUpdate(fmt.Sprintf("%s, heads or tails?", util.AtUserString(ct.GetChosen())), &markup)
 
 	if _, err = ct.bot.Send(msg); err != nil {
 		log.Printf("Error in AcceptToss(): %q", err.Error())
@@ -153,7 +154,7 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 	return
 }
 
-func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
+func (ct *CoinToss) Toss(c *api.Context, query *botapi.CallbackQuery, heads bool) (err error) {
 	defer func() {
 		running.Delete(ct.ID)
 	}()
@@ -162,22 +163,23 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 		return
 	}
 
-	choice := "tails"
+	choice := "🐒"
 	if heads {
-		choice = "heads"
+		choice = "🙉"
 	}
 
-	msg := ct.NewMessage(fmt.Sprintf("%s chooses %q ...", util.AtUserString(ct.GetChosen()), choice))
+	gameText := fmt.Sprintf(`
+%s: %s
+%s chooses %s ...`, CointossTitle, ct.playerPrefix(), util.AtUserString(ct.GetChosen()), choice)
 
-	if _, err = ct.bot.Send(msg); err != nil {
-		log.Printf("Error in Toss(): %q", err.Error())
-		return
-	}
+	msg := ct.NewMessageUpdate(gameText, nil)
+	ct.bot.Send(msg)
+	time.Sleep(time.Millisecond * 500)
 
 	heads = util.PseudoRandInt(2, false) == 1
-	result := "tails"
+	result := "🐒"
 	if heads {
-		result = "heads"
+		result = "🙉"
 	}
 
 	winner := ct.players[0]
@@ -185,24 +187,37 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 		winner = ct.players[1]
 	}
 
-	msg = ct.NewMessage(fmt.Sprintf(`
-		%s The coin lands... %q 
-
-		The winner is %s!
-	`, ct.playerPrefix(), result, util.AtUserString(winner)))
-
-	if _, err = ct.bot.Send(msg); err != nil {
-		log.Printf("Error in Toss(): %q", err.Error())
-		return
+	xpText := ""
+	if ct.players[0].ID != ct.players[1].ID {
+		var xp int64 = 100
+		c.UserRepo.ShiftXP(winner, xp)
+		xpText = fmt.Sprintf(" +%d XP", xp)
 	}
+
+	gameText = fmt.Sprintf(`
+%s
+
+The coin lands... %s`, gameText, result)
+
+	msg = ct.NewMessageUpdate(gameText, nil)
+	ct.bot.Send(msg)
+	time.Sleep(time.Millisecond * 500)
+
+	gameText = fmt.Sprintf(`
+%s
+
+%s wins!%s`, gameText, util.AtUserString(winner), xpText)
+
+	msg = ct.NewMessageUpdate(gameText, nil)
+	ct.bot.Send(msg)
 
 	return
 }
 
 func (ct *CoinToss) getCmd(cmd string) string {
-	return fmt.Sprintf("%s/cointoss/%s/%d", Path, cmd, ct.ID)
+	return fmt.Sprintf("%s/%s/%d", CointossPath, cmd, ct.ID)
 }
 
 func (ct *CoinToss) playerPrefix() string {
-	return fmt.Sprintf("%s vs %s:", util.AtUserString(ct.players[0]), util.AtUserString(ct.players[1]))
+	return fmt.Sprintf("%s vs %s", util.AtUserString(ct.players[0]), util.AtUserString(ct.players[1]))
 }

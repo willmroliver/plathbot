@@ -30,14 +30,24 @@ func (i *Interaction[T]) Age() time.Duration {
 	return time.Since(i.time)
 }
 
-func (i *Interaction[T]) NewMessage(text string) botapi.MessageConfig {
+func (i *Interaction[T]) NewMessage(text string, markup *botapi.InlineKeyboardMarkup) botapi.MessageConfig {
 	msg := botapi.NewMessage(i.msg.Chat.ID, text)
 	msg.ParseMode = botapi.ModeMarkdown
+
+	if markup != nil {
+		msg.ReplyMarkup = *markup
+	}
+
 	return msg
 }
 
-func (i *Interaction[T]) NewMessageUpdate(text string, markup botapi.InlineKeyboardMarkup) botapi.EditMessageTextConfig {
-	msg := botapi.NewEditMessageTextAndMarkup(i.msg.Chat.ID, i.msg.MessageID, text, markup)
+func (i *Interaction[T]) NewMessageUpdate(text string, markup *botapi.InlineKeyboardMarkup) (msg botapi.EditMessageTextConfig) {
+	if markup != nil {
+		msg = botapi.NewEditMessageTextAndMarkup(i.msg.Chat.ID, i.msg.MessageID, text, *markup)
+	} else {
+		msg = botapi.NewEditMessageText(i.msg.Chat.ID, i.msg.MessageID, text)
+	}
+
 	msg.ParseMode = botapi.ModeMarkdown
 	return msg
 }

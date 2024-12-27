@@ -1,14 +1,11 @@
 package api
 
 import (
-	"errors"
-	"log"
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
-	"gorm.io/gorm"
 )
 
 type Context struct {
@@ -16,7 +13,7 @@ type Context struct {
 	Bot      *botapi.BotAPI
 	Update   *botapi.Update
 	UserRepo *repo.UserRepo
-	User     *model.User
+	User     *botapi.User
 	Chat     *botapi.Chat
 	Message  *botapi.Message
 }
@@ -39,28 +36,18 @@ func (ctx *Context) HandleUpdate() {
 
 func (ctx *Context) HandleMessage() {
 	m := ctx.Update.Message
-	if m == nil {
+	if m == nil || m.From == nil {
 		return
 	}
 
-	if err := ctx.trySetUser(m.From); err != nil {
-		return
-	}
-
+	ctx.User = m.From
 	ctx.Chat = m.Chat
 	ctx.Message = m
 
 	text := m.Text
 
 	if m.Chat.Type != "private" {
-		ctx.addXP(ctx.User.TelegramUser, 10)
-
-		cmd, valid := strings.CutPrefix(text, "/plath@")
-		if !valid {
-			return
-		}
-
-		text = "/" + cmd
+		ctx.UserRepo.ShiftXP(ctx.User, 10)
 	}
 
 	switch {
@@ -77,11 +64,15 @@ func (ctx *Context) HandleMessageReaction() {
 		return
 	}
 
+	ctx.User = m.User
+	ctx.Chat = m.Chat
+	ctx.Message = m
+
 	switch {
 	case len(m.OldReaction) < len(m.NewReaction):
-		ctx.addXP(m.User, 10)
+		ctx.UserRepo.ShiftXP(ctx.User, 10)
 	case len(m.OldReaction) > len(m.NewReaction):
-		ctx.addXP(m.User, -10)
+		ctx.UserRepo.ShiftXP(ctx.User, -10)
 	default:
 		break
 	}
@@ -89,14 +80,11 @@ func (ctx *Context) HandleMessageReaction() {
 
 func (ctx *Context) HandleCallbackQuery() {
 	m := ctx.Update.CallbackQuery
-	if m == nil {
+	if m == nil || m.From == nil {
 		return
 	}
 
-	if err := ctx.trySetUser(m.From); err != nil {
-		return
-	}
-
+	ctx.User = m.From
 	ctx.Chat = m.Message.Chat
 	ctx.Message = m.Message
 
@@ -109,29 +97,6 @@ func (ctx *Context) HandleInlineQuery() {
 	}
 }
 
-func (ctx *Context) trySetUser(user *botapi.User) (err error) {
-	if user == nil {
-		err = errors.New("trySetUser() - No user passed")
-		return
-	}
-
-	ctx.User = model.NewUser(user)
-	err = ctx.UserRepo.Get(ctx.User, ctx.User.ID)
-	return
-}
-
-func (ctx *Context) addXP(u *botapi.User, xp int) (user *model.User, err error) {
-	user = model.NewUser(u)
-
-	err = ctx.Server.DB.
-		Model(u).
-		Where("id = ?", u.ID).
-		UpdateColumn("xp", gorm.Expr("xp + ?", xp)).
-		Error
-
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Printf("Error opening user %d record: %q", u.ID, err.Error())
-	}
-
-	return
+func (ctx *Context) GetUser() *model.User {
+	return ctx.UserRepo.Get(ctx.User)
 }
