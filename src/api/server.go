@@ -47,7 +47,7 @@ func NewServer(db *gorm.DB) *Server {
 		Timeout:   30 * time.Second,
 	}
 
-	bot, err := botapi.NewBotAPI("7323800698:AAE2RcvU-g81Iz-nNbRsnglTWmbCuZJJzJA")
+	bot, err := botapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}

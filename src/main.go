@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/joho/godotenv"
 	"github.com/willmroliver/plathbot/src/core"
 )
 
@@ -10,6 +11,7 @@ const (
 )
 
 func main() {
+	godotenv.Load()
 	s := core.NewServer()
 	s.Listen()
 }
