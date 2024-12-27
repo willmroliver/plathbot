@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"errors"
 	"log"
 
 	"github.com/willmroliver/plathbot/src/model"
@@ -24,7 +23,7 @@ func (r *UserRepo) ShiftXP(userID, xp int64) (err error) {
 		UpdateColumn("xp", gorm.Expr("xp + ?", xp)).
 		Error
 
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		log.Printf("Error updating user %d record: %q", userID, err.Error())
 	}
 

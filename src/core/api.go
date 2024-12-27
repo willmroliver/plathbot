@@ -1,106 +1,84 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/account"
-	"github.com/willmroliver/plathbot/src/apis"
+	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/db"
 	"github.com/willmroliver/plathbot/src/games"
-	"github.com/willmroliver/plathbot/src/server"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
-	DonateLink string = "https://support.wwf.org.uk/"
 	AdoptLink  string = "https://gifts.worldwildlife.org/gift-center/gifts/species-adoptions/duck-billed-platypus"
+	DonateLink string = "https://support.wwf.org.uk/"
 )
 
 var (
-	accountAPI  = account.API()
-	gamesAPI    = games.API()
-	callbackAPI = &apis.Callback{
+	accountAPI = account.API()
+	gamesAPI   = games.API()
+
+	inlineAPI = &api.InlineAPI{
+		Actions: map[string]api.InlineAction{
+			"fact":   requestFact,
+			"adopt":  requestAdopt,
+			"donate": requestDonate,
+		},
+	}
+
+	commandAPI = &api.CommandAPI{
+		Actions: map[string]api.CommandAction{
+			"/start": sendHelp,
+			"/help":  sendHelp,
+			"/fact":  sendFact,
+			"/account": func(c *api.Context, m *botapi.Message) {
+				accountAPI.Expose(c, nil)
+			},
+			"/games": func(c *api.Context, m *botapi.Message) {
+				gamesAPI.Expose(c, nil)
+			},
+			"/adopt": func(c *api.Context, m *botapi.Message) {
+				if !util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
+					util.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
+				}
+			},
+			"/donate": func(c *api.Context, m *botapi.Message) {
+				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
+					util.SendBasic(c.Bot, c.Chat.ID, DonateLink)
+				}
+			},
+		},
+	}
+
+	callbackAPI = &api.CallbackAPI{
 		Title: "PlathHub",
-		Actions: map[string]apis.CallbackAction{
+		Actions: map[string]api.CallbackAction{
 			accountAPI.Path: accountAPI.Select,
 			gamesAPI.Path:   gamesAPI.Select,
 		},
 	}
 )
 
-func NewServer() *server.Server {
+func NewServer() *api.Server {
 	conn, err := db.Open("test.db")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to database %q: %q", "test.db", err.Error()))
 	}
 
-	s := server.NewServer(conn)
-	ConfigureServer(s)
+	s := api.NewServer(conn)
+
+	s.CallbackAPI = callbackAPI
+	s.CommandAPI = commandAPI
+	s.InlineAPI = inlineAPI
 
 	return s
 }
 
-func ConfigureServer(s *server.Server) {
-	s.UpdateHandler = func(server *server.Server, update *botapi.Update) {
-		NewContext(server, update).HandleUpdate()
-	}
-}
-
-func handleCommand(s *server.Server, message *botapi.Message, cmd string) error {
-	api := map[string]func(*server.Server, *botapi.Chat, *botapi.Message){
-		"/start":   sendHelp,
-		"/help":    sendHelp,
-		"/fact":    sendFact,
-		"/account": accountAPI.Expose,
-		"/games":   gamesAPI.Expose,
-		"/adopt": func(s *server.Server, c *botapi.Chat, m *botapi.Message) {
-			if !util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.ID), time.Second*3) {
-				util.SendBasic(s.Bot, c.ID, AdoptLink)
-			}
-		},
-		"/donate": func(s *server.Server, c *botapi.Chat, m *botapi.Message) {
-			if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.ID), time.Second*3) {
-				util.SendBasic(s.Bot, c.ID, DonateLink)
-			}
-		},
-	}
-
-	if action, exists := api[cmd]; exists {
-		action(s, message.Chat, nil)
-		return nil
-	}
-
-	return errors.New("command does not exist")
-}
-
-func handleCallbackQuery(s *server.Server, message *botapi.CallbackQuery, cmd string) {
-	go callbackAPI.Select(s, message, apis.NewCallbackCmd(cmd))
-}
-
-func handleInlineQuery(s *server.Server, message *botapi.InlineQuery) error {
-	api := map[string]func(*server.Server, *botapi.InlineQuery) error{
-		"fact":   requestFact,
-		"adopt":  requestAdopt,
-		"donate": requestDonate,
-	}
-
-	if action, exists := api[message.Query]; exists {
-		if err := action(s, message); err != nil {
-			log.Printf("An error ocurred: %s", err.Error())
-			return err
-		}
-
-		return nil
-	}
-
-	return errors.New("query does not exist")
-}
-
-func sendHelp(s *server.Server, c *botapi.Chat, m *botapi.Message) {
+func sendHelp(c *api.Context, m *botapi.Message) {
 	public := fmt.Sprintf(`
 	Welcome to the P1athHub - Next stop, the moon 🚀🌖
 
@@ -116,7 +94,7 @@ func sendHelp(s *server.Server, c *botapi.Chat, m *botapi.Message) {
 	🐾 /plath@games 🎮
 
 	Telegram won't let me spam group chats, so some of these have rate limits... Sorry!
-	`, util.AtBotString(s.Bot))
+	`, util.AtBotString(c.Bot))
 
 	private := `
 	Hey, it's P1ath 🚀🌖
@@ -132,24 +110,24 @@ func sendHelp(s *server.Server, c *botapi.Chat, m *botapi.Message) {
 	`
 
 	text := public
-	if c.Type == "private" {
+	if c.Chat.Type == "private" {
 		text = private
-	} else if !util.TryLockFor(fmt.Sprintf("%d help", c.ID), time.Second*5) {
+	} else if !util.TryLockFor(fmt.Sprintf("%d help", c.Chat.ID), time.Second*5) {
 		return
 	}
 
-	msg := botapi.NewMessage(c.ID, text)
+	msg := botapi.NewMessage(c.Chat.ID, text)
 	msg.ParseMode = botapi.ModeMarkdown
-	s.Bot.Send(msg)
+	c.Bot.Send(msg)
 }
 
-func sendFact(s *server.Server, c *botapi.Chat, m *botapi.Message) {
-	if c.Type != "private" && !util.TryLockFor(fmt.Sprintf("%d fact", c.ID), time.Second*5) {
+func sendFact(c *api.Context, m *botapi.Message) {
+	if c.Chat.Type != "private" && !util.TryLockFor(fmt.Sprintf("%d fact", c.Chat.ID), time.Second*5) {
 		return
 	}
 
-	if _, err := s.Bot.Send(botapi.NewMessage(
-		c.ID,
+	if _, err := c.Bot.Send(botapi.NewMessage(
+		c.Chat.ID,
 		getFact(),
 	)); err != nil {
 		log.Printf("Got an error sending a fact: %q", err.Error())
@@ -178,28 +156,24 @@ func getFact() string {
 	return facts[util.PseudoRandInt(len(facts), true)]
 }
 
-func requestAdopt(s *server.Server, query *botapi.InlineQuery) error {
-	return util.RequestBasic(s.Bot, query, "Adopt a Platypus", AdoptLink)
+func requestAdopt(c *api.Context, query *botapi.InlineQuery) {
+	util.RequestBasic(c.Bot, query, "Adopt a Platypus", AdoptLink)
 }
 
-func requestDonate(s *server.Server, query *botapi.InlineQuery) error {
-	return util.RequestBasic(s.Bot, query, "Donate to WWF", DonateLink)
+func requestDonate(c *api.Context, query *botapi.InlineQuery) {
+	util.RequestBasic(c.Bot, query, "Donate to WWF", DonateLink)
 }
 
-func requestFact(s *server.Server, query *botapi.InlineQuery) (err error) {
+func requestFact(c *api.Context, query *botapi.InlineQuery) {
 	text := "/plath@fact"
 	if query.ChatType == "private" {
 		text = "fact"
 	}
 
-	a := botapi.NewInlineQueryResultArticle(query.ID, "Plath Fact!", text)
-	c := botapi.InlineConfig{
+	c.Bot.Request(botapi.InlineConfig{
 		InlineQueryID: query.ID,
 		IsPersonal:    true,
 		CacheTime:     0,
-		Results:       []interface{}{a},
-	}
-
-	_, err = s.Bot.Request(c)
-	return
+		Results:       []interface{}{botapi.NewInlineQueryResultArticle(query.ID, "Plath Fact!", text)},
+	})
 }

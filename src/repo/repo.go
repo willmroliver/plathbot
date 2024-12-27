@@ -37,11 +37,12 @@ func (r *Repo) Save(m any) (err error) {
 func (r *Repo) GetBy(m any, col string, val any) (err error) {
 	err = r.db.Where(fmt.Sprintf("%s = ?", col), val).First(m).Error
 
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Printf("Repo Get() error: %q", err.Error())
+		return
 	}
 
-	return
+	return nil
 }
 
 func (r *Repo) Get(m any, id any) error {

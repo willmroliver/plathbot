@@ -8,13 +8,12 @@ import (
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/willmroliver/plathbot/src/apis"
-	"github.com/willmroliver/plathbot/src/server"
+	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
 type CoinToss struct {
-	*apis.Interaction[string]
+	*api.Interaction[string]
 	ID      int64
 	bot     *botapi.BotAPI
 	players []*botapi.User
@@ -25,7 +24,7 @@ type CoinToss struct {
 
 var running = sync.Map{}
 
-func CointossQuery(s *server.Server, query *botapi.CallbackQuery, cmd *apis.CallbackCmd) {
+func CointossQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.CallbackCmd) {
 	running.Range(func(key any, value any) bool {
 		game := value.(*CoinToss)
 		if game.updated.Add(time.Minute*5).Compare(time.Now()) == -1 {
@@ -40,7 +39,7 @@ func CointossQuery(s *server.Server, query *botapi.CallbackQuery, cmd *apis.Call
 	if action == "" {
 		_, exists := running.Load(query.From.ID)
 		if !exists {
-			game := NewCoinToss(s.Bot, query.Message, query.From)
+			game := NewCoinToss(c.Bot, query.Message, query.From)
 
 			if game.RequestToss(query) == nil {
 				running.Store(game.ID, game)
@@ -92,7 +91,7 @@ func CointossQuery(s *server.Server, query *botapi.CallbackQuery, cmd *apis.Call
 
 func NewCoinToss(bot *botapi.BotAPI, message *botapi.Message, player *botapi.User) *CoinToss {
 	return &CoinToss{
-		Interaction: apis.NewInteraction[string](message, "request"),
+		Interaction: api.NewInteraction[string](message, "request"),
 		ID:          player.ID,
 		bot:         bot,
 		players:     []*botapi.User{player, nil},
@@ -140,8 +139,8 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 	msg := ct.NewMessageUpdate(
 		fmt.Sprintf("%s, heads or tails?", util.AtUserString(ct.GetChosen())),
 		util.InlineKeyboard([]map[string]string{{
-			"Heads": ct.getCmd("heads"),
-			"Tails": ct.getCmd("tails"),
+			"🙉 Heads": ct.getCmd("heads"),
+			"🐒 Tails": ct.getCmd("tails"),
 		}}),
 	)
 
@@ -201,7 +200,7 @@ func (ct *CoinToss) Toss(query *botapi.CallbackQuery, heads bool) (err error) {
 }
 
 func (ct *CoinToss) getCmd(cmd string) string {
-	return fmt.Sprintf("games/cointoss/%s/%d", cmd, ct.ID)
+	return fmt.Sprintf("%s/cointoss/%s/%d", Path, cmd, ct.ID)
 }
 
 func (ct *CoinToss) playerPrefix() string {
