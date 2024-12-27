@@ -42,7 +42,7 @@ var (
 				gamesAPI.Expose(c, nil)
 			},
 			"/adopt": func(c *api.Context, m *botapi.Message) {
-				if !util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
+				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
 					util.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
 				}
 			},

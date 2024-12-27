@@ -5,27 +5,41 @@ import (
 	"time"
 )
 
-var locks sync.Map
+var locks = map[any]time.Time{}
+var mut = &sync.Mutex{}
 
 func TryLockFor(key any, dur time.Duration) bool {
-	lock, ok := locks.Load(key)
+	mut.Lock()
+	defer mut.Unlock()
 
-	if ok {
-		return lock.(*sync.Mutex).TryLock()
+	lock, ok := locks[key]
+
+	if ok && lock.After(time.Now()) {
+		return false
 	}
 
-	lock = &sync.Mutex{}
-	ok = lock.(*sync.Mutex).TryLock()
+	locks[key] = time.Now().Add(dur)
 
-	if ok {
-		locks.Store(key, lock)
+	return true
+}
 
-		go func() {
-			time.Sleep(dur)
-			lock.(*sync.Mutex).Unlock()
-			locks.Delete(key)
-		}()
-	}
+var breaker = true
 
-	return ok
+func InitLockerTidy(every time.Duration) {
+	breaker = true
+
+	go func() {
+		for breaker {
+			time.Sleep(every)
+			for key, lock := range locks {
+				if lock.Before(time.Now()) {
+					delete(locks, key)
+				}
+			}
+		}
+	}()
+}
+
+func HaultLockerTidy() {
+	breaker = false
 }

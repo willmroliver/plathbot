@@ -11,6 +11,7 @@ import (
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/willmroliver/plathbot/src/util"
 	"gorm.io/gorm"
 )
 
@@ -90,6 +91,7 @@ func (s *Server) Listen() {
 		}
 	}
 
+	util.InitLockerTidy(time.Minute * 30)
 	go listen()
 
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
