@@ -1,4 +1,4 @@
-package server
+package api
 
 import (
 	"bufio"
@@ -15,9 +15,11 @@ import (
 )
 
 type Server struct {
-	Bot           *botapi.BotAPI
-	DB            *gorm.DB
-	UpdateHandler func(s *Server, update *botapi.Update)
+	Bot         *botapi.BotAPI
+	DB          *gorm.DB
+	CallbackAPI *CallbackAPI
+	CommandAPI  *CommandAPI
+	InlineAPI   *InlineAPI
 
 	messageHooks sync.Map
 }
@@ -83,7 +85,7 @@ func (s *Server) Listen() {
 					continue
 				}
 
-				s.UpdateHandler(s, &update)
+				NewContext(s, &update).HandleUpdate()
 			}
 		}
 	}

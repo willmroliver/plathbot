@@ -1,4 +1,4 @@
-package core
+package api
 
 import (
 	"errors"
@@ -7,19 +7,26 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/model"
-	"github.com/willmroliver/plathbot/src/server"
+	"github.com/willmroliver/plathbot/src/repo"
 	"gorm.io/gorm"
 )
 
 type Context struct {
-	server *server.Server
-	update *botapi.Update
+	Server   *Server
+	Bot      *botapi.BotAPI
+	Update   *botapi.Update
+	UserRepo *repo.UserRepo
+	User     *model.User
+	Chat     *botapi.Chat
+	Message  *botapi.Message
 }
 
-func NewContext(server *server.Server, update *botapi.Update) *Context {
+func NewContext(server *Server, update *botapi.Update) *Context {
 	return &Context{
-		server,
-		update,
+		Server:   server,
+		Bot:      server.Bot,
+		Update:   update,
+		UserRepo: repo.NewUserRepo(server.DB),
 	}
 }
 
@@ -31,20 +38,22 @@ func (ctx *Context) HandleUpdate() {
 }
 
 func (ctx *Context) HandleMessage() {
-	m := ctx.update.Message
+	m := ctx.Update.Message
 	if m == nil {
 		return
 	}
 
-	from := m.From
-	text := m.Text
-
-	if from == nil {
+	if err := ctx.trySetUser(m.From); err != nil {
 		return
 	}
 
+	ctx.Chat = m.Chat
+	ctx.Message = m
+
+	text := m.Text
+
 	if m.Chat.Type != "private" {
-		ctx.addXP(from, 10)
+		ctx.addXP(ctx.User.TelegramUser, 10)
 
 		cmd, valid := strings.CutPrefix(text, "/plath@")
 		if !valid {
@@ -54,22 +63,16 @@ func (ctx *Context) HandleMessage() {
 		text = "/" + cmd
 	}
 
-	var err error
-
 	switch {
 	case strings.HasPrefix(text, "/"):
-		err = handleCommand(ctx.server, m, text)
+		ctx.Server.CommandAPI.Select(ctx, m, text)
 	default:
 		break
-	}
-
-	if err != nil {
-		log.Printf("An error ocurred: %s", err.Error())
 	}
 }
 
 func (ctx *Context) HandleMessageReaction() {
-	m := ctx.update.MessageReaction
+	m := ctx.Update.MessageReaction
 	if m == nil || m.User == nil || m.Chat.Type == "private" {
 		return
 	}
@@ -85,26 +88,42 @@ func (ctx *Context) HandleMessageReaction() {
 }
 
 func (ctx *Context) HandleCallbackQuery() {
-	m := ctx.update.CallbackQuery
+	m := ctx.Update.CallbackQuery
 	if m == nil {
 		return
 	}
 
-	handleCallbackQuery(ctx.server, ctx.update.CallbackQuery, m.Data)
+	if err := ctx.trySetUser(m.From); err != nil {
+		return
+	}
+
+	ctx.Chat = m.Message.Chat
+	ctx.Message = m.Message
+
+	go ctx.Server.CallbackAPI.Select(ctx, m, NewCallbackCmd(m.Data))
 }
 
 func (ctx *Context) HandleInlineQuery() {
-	if m := ctx.update.InlineQuery; m != nil {
-		if err := handleInlineQuery(ctx.server, m); err != nil {
-			log.Printf("HandleInlineQuery error: %q", err.Error())
-		}
+	if m := ctx.Update.InlineQuery; m != nil {
+		ctx.Server.InlineAPI.Select(ctx, m, m.Query)
 	}
+}
+
+func (ctx *Context) trySetUser(user *botapi.User) (err error) {
+	if user == nil {
+		err = errors.New("trySetUser() - No user passed")
+		return
+	}
+
+	ctx.User = model.NewUser(user)
+	err = ctx.UserRepo.Get(ctx.User, ctx.User.ID)
+	return
 }
 
 func (ctx *Context) addXP(u *botapi.User, xp int) (user *model.User, err error) {
 	user = model.NewUser(u)
 
-	err = ctx.server.DB.
+	err = ctx.Server.DB.
 		Model(u).
 		Where("id = ?", u.ID).
 		UpdateColumn("xp", gorm.Expr("xp + ?", xp)).

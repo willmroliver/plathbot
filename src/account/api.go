@@ -3,7 +3,7 @@ package account
 import (
 	"time"
 
-	"github.com/willmroliver/plathbot/src/apis"
+	"github.com/willmroliver/plathbot/src/api"
 )
 
 const (
@@ -15,19 +15,19 @@ var (
 	walletAPI = WalletAPI()
 )
 
-func API() *apis.Callback {
-	return apis.NewCallback(
+func API() *api.CallbackAPI {
+	return api.NewCallbackAPI(
 		Title,
 		Path,
-		&apis.CallbackConfig{
-			Actions: map[string]apis.CallbackAction{
+		&api.CallbackConfig{
+			Actions: map[string]api.CallbackAction{
 				"wallet": walletAPI.Select,
 				"xp":     XPQuery,
 			},
 			PublicCooldown: time.Second * 15,
 			PrivateOptions: []map[string]string{
 				{WalletTitle: "wallet"},
-				{"📈 My XP": "xp"},
+				{XPTitle: "xp"},
 			},
 			PrivateOnly: true,
 		},

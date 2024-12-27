@@ -3,7 +3,7 @@ package games
 import (
 	"time"
 
-	"github.com/willmroliver/plathbot/src/apis"
+	"github.com/willmroliver/plathbot/src/api"
 )
 
 const (
@@ -11,12 +11,12 @@ const (
 	Path  = "games"
 )
 
-func API() *apis.Callback {
-	return apis.NewCallback(
+func API() *api.CallbackAPI {
+	return api.NewCallbackAPI(
 		Title,
 		Path,
-		&apis.CallbackConfig{
-			Actions: map[string]apis.CallbackAction{
+		&api.CallbackConfig{
+			Actions: map[string]api.CallbackAction{
 				"cointoss": CointossQuery,
 			},
 			PublicCooldown: time.Second * 15,
