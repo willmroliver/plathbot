@@ -26,8 +26,8 @@ var (
 	callbackAPI = &apis.Callback{
 		Title: "PlathHub",
 		Actions: map[string]apis.CallbackAction{
-			"account": accountAPI.Select,
-			"games":   gamesAPI.Select,
+			accountAPI.Path: accountAPI.Select,
+			gamesAPI.Path:   gamesAPI.Select,
 		},
 	}
 )

@@ -1,28 +1,35 @@
 package account
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/willmroliver/plathbot/src/apis"
 )
 
-func API() *apis.Callback {
-	return &apis.Callback{
-		Title: "💻 Your Account",
-		Actions: map[string]apis.CallbackAction{
-			"wallet": WalletQuery,
-			"xp":     XPQuery,
-		},
-		PublicCooldown: time.Second * 15,
-		PrivateOptions: []map[string]string{
-			{"💳 Wallet": getCmd("wallet")},
-			{"📈 My XP": getCmd("xp")},
-		},
-		PrivateOnly: true,
-	}
-}
+const (
+	Title = "💻 Your Account"
+	Path  = "account"
+)
 
-func getCmd(name string) string {
-	return fmt.Sprintf("account/%s/", name)
+var (
+	walletAPI = WalletAPI()
+)
+
+func API() *apis.Callback {
+	return apis.NewCallback(
+		Title,
+		Path,
+		&apis.CallbackConfig{
+			Actions: map[string]apis.CallbackAction{
+				"wallet": walletAPI.Select,
+				"xp":     XPQuery,
+			},
+			PublicCooldown: time.Second * 15,
+			PrivateOptions: []map[string]string{
+				{WalletTitle: "wallet"},
+				{"📈 My XP": "xp"},
+			},
+			PrivateOnly: true,
+		},
+	)
 }

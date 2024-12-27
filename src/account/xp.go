@@ -20,7 +20,7 @@ func XPQuery(s *server.Server, query *botapi.CallbackQuery, cmd *apis.CallbackCm
 		return
 	}
 
-	opts := util.InlineKeyboard([]map[string]string{{"👈 Back": "account"}})
+	opts := util.InlineKeyboard([]map[string]string{{"👈 Back": Path}})
 	msg := botapi.NewEditMessageText(chatID, msgID, fmt.Sprintf("📊 Current XP: %d", user.XP))
 	msg.ReplyMarkup = &opts
 

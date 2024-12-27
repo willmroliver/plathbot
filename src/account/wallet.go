@@ -2,7 +2,6 @@ package account
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -14,6 +13,45 @@ import (
 	"github.com/willmroliver/plathbot/src/util"
 	"gorm.io/gorm"
 )
+
+const (
+	WalletTitle = "💳 Public Wallet"
+	WalletPath  = Path + "/wallet"
+)
+
+var open = sync.Map{}
+
+func WalletAPI() *apis.Callback {
+	return apis.NewCallback(
+		WalletTitle,
+		WalletPath,
+		&apis.CallbackConfig{
+			Actions: map[string]apis.CallbackAction{
+				"view": func(s *server.Server, cq *botapi.CallbackQuery, cc *apis.CallbackCmd) {
+					if w := OpenWallet(s.DB, cq); w != nil {
+						w.View(s, cq)
+					}
+				},
+				"update": func(s *server.Server, cq *botapi.CallbackQuery, cc *apis.CallbackCmd) {
+					if w := OpenWallet(s.DB, cq); w != nil {
+						w.Update(s, cq)
+					}
+				},
+				"remove": func(s *server.Server, cq *botapi.CallbackQuery, cc *apis.CallbackCmd) {
+					if w := OpenWallet(s.DB, cq); w != nil {
+						w.Remove(s, cq)
+					}
+				},
+			},
+			PrivateOptions: []map[string]string{
+				{"✏️ Update": "update"},
+				{"👀 View": "view", "🗑️ Remove": "remove"},
+				{"👈 Back": ".."},
+			},
+			PrivateOnly: true,
+		},
+	)
+}
 
 type Wallet struct {
 	*apis.Interaction[string]
@@ -40,9 +78,7 @@ func NewWallet(db *gorm.DB, query *botapi.CallbackQuery) *Wallet {
 	}
 }
 
-var open = sync.Map{}
-
-func WalletQuery(s *server.Server, query *botapi.CallbackQuery, cmd *apis.CallbackCmd) {
+func OpenWallet(db *gorm.DB, query *botapi.CallbackQuery) (wallet *Wallet) {
 	open.Range(func(key any, value any) bool {
 		if value.(*apis.Interaction[any]).Age() > time.Minute*5 {
 			open.Delete(key)
@@ -51,73 +87,62 @@ func WalletQuery(s *server.Server, query *botapi.CallbackQuery, cmd *apis.Callba
 		return true
 	})
 
-	var wallet *Wallet
-
 	if data, exists := open.Load(query.From.ID); exists {
 		wallet = data.(*Wallet)
 	} else {
-		wallet = NewWallet(s.DB, query)
+		wallet = NewWallet(db, query)
 	}
 
-	if wallet == nil {
-		return
-	}
-
-	chatID := query.Message.Chat.ID
-
-	actions := map[string]func(){
-		"": func() {
-			wallet.sendOptions(s.Bot, query.Message)
-		},
-		"view": func() {
-			util.SendBasic(s.Bot, chatID, wallet.user.PublicWallet)
-		},
-		"update": func() {
-			wallet.Mutate("update", query.Message)
-
-			msg := wallet.NewMessage("Okay! Send me a public wallet address to associate to your account.")
-			util.SendConfig(s.Bot, &msg)
-
-			hook := server.NewMessageHook(func(s *server.Server, m *botapi.Message, data any) {
-				wallet = data.(*Wallet)
-
-				if !wallet.Is("update") {
-					return
-				}
-
-				if err := wallet.UpdatePublicWallet(m.Text); err != nil {
-					msg := wallet.NewMessage("Something went wrong updating your wallet details")
-					util.SendConfig(s.Bot, &msg)
-				}
-
-				msg := wallet.NewMessage("✅ Saved")
-				msg.ReplyMarkup = util.InlineKeyboard([]map[string]string{{
-					"💻 Account": "account",
-				}})
-
-				util.SendConfig(s.Bot, &msg)
-			}, wallet, time.Minute*5)
-
-			s.RegisterMessageHook(chatID, hook)
-		},
-		"remove": func() {
-			wallet.user.PublicWallet = ""
-
-			if err := wallet.repo.Save(wallet.user); err != nil {
-				util.SendBasic(s.Bot, chatID, "Something went wrong deleting your wallet details.")
-			} else {
-				msg := wallet.NewMessageUpdate("✅ Deleted", util.InlineKeyboard([]map[string]string{{
-					"💻 Account": "account",
-				}}))
-				util.SendUpdate(s.Bot, &msg)
-			}
-		},
-	}
-
-	actions[cmd.Get()]()
+	return
 }
 
-func (w *Wallet) UpdatePublicWallet(addr string) (err error) {
+func (w *Wallet) View(s *server.Server, query *botapi.CallbackQuery) {
+	util.SendBasic(s.Bot, query.Message.Chat.ID, w.user.PublicWallet)
+}
+
+func (w *Wallet) Update(s *server.Server, query *botapi.CallbackQuery) {
+	w.Mutate("update", query.Message)
+
+	msg := w.NewMessage("Okay! Send me a public wallet address to associate to your account.")
+	util.SendConfig(s.Bot, &msg)
+
+	hook := server.NewMessageHook(func(s *server.Server, m *botapi.Message, data any) {
+		w = data.(*Wallet)
+
+		if !w.Is("update") {
+			return
+		}
+
+		if err := w.updateUserWallet(m.Text); err != nil {
+			msg := w.NewMessage("Something went wrong updating your wallet details")
+			util.SendConfig(s.Bot, &msg)
+		}
+
+		msg := w.NewMessage("✅ Saved")
+		msg.ReplyMarkup = util.InlineKeyboard([]map[string]string{{
+			Title: Path,
+		}})
+
+		util.SendConfig(s.Bot, &msg)
+	}, w, time.Minute*5)
+
+	s.RegisterMessageHook(query.Message.Chat.ID, hook)
+}
+
+func (w *Wallet) Remove(s *server.Server, query *botapi.CallbackQuery) {
+	w.user.PublicWallet = ""
+
+	if err := w.repo.Save(w.user); err != nil {
+		util.SendBasic(s.Bot, query.Message.Chat.ID, "Something went wrong deleting your wallet details.")
+	} else {
+		msg := w.NewMessageUpdate("✅ Deleted", util.InlineKeyboard([]map[string]string{{
+			Title: Path,
+		}}))
+		util.SendUpdate(s.Bot, &msg)
+	}
+}
+
+func (w *Wallet) updateUserWallet(addr string) (err error) {
 	if !w.Is("update") {
 		return
 	}
@@ -125,21 +150,4 @@ func (w *Wallet) UpdatePublicWallet(addr string) (err error) {
 	w.user.PublicWallet = addr
 	err = w.repo.Save(w.user)
 	return
-}
-
-func (w *Wallet) sendOptions(bot *botapi.BotAPI, message *botapi.Message) {
-	options := util.InlineKeyboard([]map[string]string{
-		{"✏️ Update": w.getCmd("update")},
-		{"👀 View": w.getCmd("view"), "🗑️ Remove": w.getCmd("remove")},
-		{"👈 Back": "account"},
-	})
-
-	msg := botapi.NewEditMessageText(message.Chat.ID, message.MessageID, "💳 Public Wallet")
-	msg.ReplyMarkup = &options
-
-	util.SendUpdate(bot, &msg)
-}
-
-func (w *Wallet) getCmd(cmd string) string {
-	return fmt.Sprintf("account/wallet/%s", cmd)
 }

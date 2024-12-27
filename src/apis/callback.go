@@ -52,6 +52,15 @@ func (cc *CallbackCmd) Next() *CallbackCmd {
 
 type CallbackAction func(*server.Server, *botapi.CallbackQuery, *CallbackCmd)
 
+type CallbackConfig struct {
+	Actions        map[string]CallbackAction
+	PublicOptions  []map[string]string
+	PublicCooldown time.Duration
+	PublicOnly     bool
+	PrivateOptions []map[string]string
+	PrivateOnly    bool
+}
+
 type Callback struct {
 	Title          string
 	Actions        map[string]CallbackAction
@@ -60,6 +69,25 @@ type Callback struct {
 	PublicOnly     bool
 	PrivateOptions []map[string]string
 	PrivateOnly    bool
+	Path           string
+}
+
+func NewCallback(title, path string, config *CallbackConfig) (api *Callback) {
+	api = &Callback{
+		Title:          title,
+		Actions:        config.Actions,
+		PublicOptions:  config.PublicOptions,
+		PublicCooldown: config.PublicCooldown,
+		PublicOnly:     config.PublicOnly,
+		PrivateOptions: config.PrivateOptions,
+		PrivateOnly:    config.PrivateOnly,
+		Path:           path,
+	}
+
+	api.PublicOptions = api.resolveOpts(api.PublicOptions)
+	api.PrivateOptions = api.resolveOpts(api.PrivateOptions)
+
+	return
 }
 
 func (api *Callback) Select(s *server.Server, msg *botapi.CallbackQuery, cmd *CallbackCmd) {
@@ -124,4 +152,36 @@ func (api *Callback) Expose(s *server.Server, chat *botapi.Chat, msg *botapi.Mes
 	}
 
 	send(chat, msg, api.PrivateOptions)
+}
+
+func (api *Callback) GetCmd(cmd string) string {
+	if api.Path == "" {
+		return cmd
+	}
+
+	return fmt.Sprintf("%s/%s", api.Path, cmd)
+}
+
+func (api *Callback) resolveOpts(opts []map[string]string) (res []map[string]string) {
+	res = make([]map[string]string, len(opts))
+
+	for i, row := range opts {
+		res[i] = make(map[string]string)
+
+		for k, v := range row {
+			if v == ".." {
+				if j := strings.LastIndex(api.Path, "/"); j != -1 {
+					res[i][k] = strings.Join([]string{api.Path[:j], v}, "/")
+				} else {
+					res[i][k] = ""
+				}
+
+				continue
+			}
+
+			res[i][k] = strings.Join([]string{api.Path, v}, "/")
+		}
+	}
+
+	return res
 }
