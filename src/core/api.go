@@ -73,7 +73,7 @@ var (
 )
 
 func NewServer() *api.Server {
-	conn, err := db.Open(os.Getenv("DB_NAME"))
+	conn, err := db.Open(fmt.Sprintf("%s/%s", os.Getenv("MOUNT_DIR"), os.Getenv("DB_NAME")))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to database %q: %q", "test.db", err.Error()))
 	}
