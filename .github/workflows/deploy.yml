@@ -1,0 +1,29 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches:
+      - main  # Trigger deployment on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up SSH key
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Deploy code to Oracle Cloud
+      run: |
+        ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 << 'EOF'
+          cd /app
+
+          # Pull the latest code (if using git)
+          git pull origin main
+
+        EOF
