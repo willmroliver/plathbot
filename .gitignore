@@ -1,4 +1,4 @@
 vendor
 *.db
-.env
-
+*.env
+.ssh
