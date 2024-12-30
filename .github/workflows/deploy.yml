@@ -16,21 +16,24 @@ jobs:
     - name: Set up SSH key for GitHub
       uses: webfactory/ssh-agent@v0.5.3
       with:
-        ssh-private-key: |
-          ${{ secrets.SSH_PRIVATE_KEY_GITHUB }}
-          ${{ secrets.SSH_PRIVATE_KEY }}
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Add GitHub to known hosts
+    - name: Transfer GitHub SSH private key to VM
       run: |
-        mkdir -p /home/ubuntu/.ssh
-        touch /home/ubuntu/.ssh/known_hosts
-        
-        ssh-keyscan github.com > /home/ubuntu/.ssh/known_hosts
-        ssh-keyscan 143.47.229.144 >> /home/ubuntu/.ssh/known_hosts
+        echo "${{ secrets.SSH_PRIVATE_KEY_GITHUB }}" > github_key
+        chmod 600 github_key
+        scp -o StrictHostKeyChecking=no github_key ubuntu@143.47.229.144:~/.ssh/github_key
+        ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 'chmod 600 ~/.ssh/github_key'
+
         
     - name: Deploy code to Oracle Cloud
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 << 'EOF'
+          mkdir -p ~/.ssh
+
+          echo -e "Host github.com\n  IdentityFile ~/.ssh/github_key\n  User git\n" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
           cd /app
 
           # Pull the latest code (if using git)
