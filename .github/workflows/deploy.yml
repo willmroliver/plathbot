@@ -16,23 +16,16 @@ jobs:
     - name: Set up SSH key for GitHub
       uses: webfactory/ssh-agent@v0.5.3
       with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY_GITHUB }}
+        ssh-private-key: |
+          ${{ secrets.SSH_PRIVATE_KEY_GITHUB }}
+          ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: Add GitHub to known hosts
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan github.com > ~/.ssh/known_hosts
-
-    - name: Set up SSH key
-      uses: webfactory/ssh-agent@v0.5.3
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-    
-    - name: Add Oracle Cloud VM to known hosts
-      run: |
-        mkdir -p ~/.ssh
         ssh-keyscan 143.47.229.144 >> ~/.ssh/known_hosts
-
+        
     - name: Deploy code to Oracle Cloud
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 << 'EOF'
