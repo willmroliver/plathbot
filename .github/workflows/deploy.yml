@@ -25,7 +25,6 @@ jobs:
         scp -o StrictHostKeyChecking=no github_key ubuntu@143.47.229.144:~/.ssh/github_key
         ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 'chmod 600 ~/.ssh/github_key'
 
-        
     - name: Deploy code to Oracle Cloud
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 << 'EOF'
@@ -35,4 +34,15 @@ jobs:
           cd /app
           git pull origin main
 
+          HASH_FILE="/app/data/src_hash.txt"
+          NEW_HASH=$(find "$SRC_DIR" -type f -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
+
+          if [ -f "$HASH_FILE" ]; then
+            OLD_HASH=$(cat "$HASH_FILE")
+            if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+              docker compose up --build -d
+            fi
+          else
+            docker compose up --build -d
+          fi
         EOF
