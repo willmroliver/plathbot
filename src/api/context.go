@@ -50,12 +50,15 @@ func (ctx *Context) HandleMessage() {
 		ctx.UserRepo.ShiftXP(ctx.User, 10)
 	}
 
-	switch {
-	case strings.HasPrefix(text, "/"):
-		ctx.Server.CommandAPI.Select(ctx, m, text)
-	default:
-		break
+	if !strings.HasPrefix(text, "/") {
+		return
 	}
+
+	if i := strings.LastIndex(text, "@"); i != -1 && text[i+1:] != ctx.Bot.Self.UserName {
+		return
+	}
+
+	ctx.Server.CommandAPI.Select(ctx, m, text)
 }
 
 func (ctx *Context) HandleMessageReaction() {

@@ -29,14 +29,10 @@ jobs:
     - name: Deploy code to Oracle Cloud
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 << 'EOF'
-          mkdir -p ~/.ssh
-
-          echo -e "Host github.com\n  IdentityFile ~/.ssh/github_key\n  User git\n" >> ~/.ssh/config
+          echo -e "Host github.com\n  IdentityFile ~/.ssh/github_key\n  User git\n" > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
           cd /app
-
-          # Pull the latest code (if using git)
           git pull origin main
 
         EOF
