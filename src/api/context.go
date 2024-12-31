@@ -73,6 +73,8 @@ func (ctx *Context) HandleMessageReaction() {
 	ctx.Chat = m.Chat
 	ctx.Message = m
 
+	ctx.UserRepo.UpdateReacts(m)
+
 	switch {
 	case len(m.OldReaction) < len(m.NewReaction):
 		ctx.UserRepo.ShiftXP(ctx.User, 10)
