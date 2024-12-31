@@ -56,6 +56,8 @@ func (ctx *Context) HandleMessage() {
 
 	if i := strings.LastIndex(text, "@"); i != -1 && text[i+1:] != ctx.Bot.Self.UserName {
 		return
+	} else if i != -1 {
+		text = text[:i]
 	}
 
 	ctx.Server.CommandAPI.Select(ctx, m, text)
