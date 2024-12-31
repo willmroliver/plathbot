@@ -10,17 +10,20 @@ import (
 
 type User struct {
 	gorm.Model
-	ID           int64        `json:"id" gorm:"primarykey"`
-	TelegramUser *botapi.User `json:"telegram_user" gorm:"-"`
-	Username     string       `json:"username" gorm:"size:100"`
-	PublicWallet string       `json:"public_wallet" gorm:"size:100"`
-	XP           int64        `json:"xp"`
+	ID           int64                  `json:"id" gorm:"primarykey"`
+	TelegramUser *botapi.User           `json:"telegram_user" gorm:"-"`
+	Username     string                 `json:"username" gorm:"size:100"`
+	PublicWallet string                 `json:"public_wallet" gorm:"size:100"`
+	XP           int64                  `json:"xp"`
+	ReactCounts  []*ReactCount          `json:"react_counts"`
+	ReactMap     map[string]*ReactCount `json:"-" gorm:"-"`
 }
 
 func NewUser(user *botapi.User) *User {
 	u := &User{
 		ID:           user.ID,
 		TelegramUser: user,
+		ReactMap:     make(map[string]*ReactCount),
 	}
 
 	u.Username = u.GetUsername()
