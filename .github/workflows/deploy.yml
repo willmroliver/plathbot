@@ -24,11 +24,12 @@ jobs:
         chmod 600 github_key
         scp -o StrictHostKeyChecking=no github_key ubuntu@143.47.229.144:~/.ssh/github_key
         ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 'chmod 600 ~/.ssh/github_key'
+        ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 'echo -e "Host *\n  ServerAliveInterval 60\n  ServerAliveCountMax 10\n\n" > ~/.ssh/config'
 
     - name: Deploy code to Oracle Cloud
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@143.47.229.144 << 'EOF'
-          echo -e "Host github.com\n  IdentityFile ~/.ssh/github_key\n  User git\n" > ~/.ssh/config
+          echo -e "Host github.com\n  IdentityFile ~/.ssh/github_key\n  User git\n\n" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
 
           cd /app
@@ -45,4 +46,6 @@ jobs:
           else
             docker compose up --build -d
           fi
+
+          echo "$NEW_HASH" > "$HASH_FILE"
         EOF
