@@ -36,7 +36,7 @@ jobs:
           git pull origin main
 
           HASH_FILE="/app/data/src_hash.txt"
-          NEW_HASH=$(find "$SRC_DIR" -type f -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
+          NEW_HASH=$(find "./src" -type f -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
 
           if [ -f "$HASH_FILE" ]; then
             OLD_HASH=$(cat "$HASH_FILE")
