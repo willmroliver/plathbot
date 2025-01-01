@@ -107,9 +107,13 @@ func (s *Server) DoMessageHook(m *botapi.Message) bool {
 		return false
 	}
 
-	data, exists := s.messageHooks.LoadAndDelete(m.Chat.ID)
-	if exists && data.(*MessageHook).ExpiresAt.Compare(time.Now()) > -1 {
-		data.(*MessageHook).Execute(s, m)
+	data, exists := s.messageHooks.Load(m.Chat.ID)
+	if !exists {
+		return false
+	}
+
+	if data.(*MessageHook).ExpiresAt.Compare(time.Now()) == -1 || data.(*MessageHook).Execute(s, m) {
+		s.messageHooks.Delete(m.Chat.ID)
 		return true
 	}
 

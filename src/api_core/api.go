@@ -7,10 +7,11 @@ import (
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/willmroliver/plathbot/src/account"
 	"github.com/willmroliver/plathbot/src/api"
+	account "github.com/willmroliver/plathbot/src/api_account"
+	emoji "github.com/willmroliver/plathbot/src/api_emoji"
+	games "github.com/willmroliver/plathbot/src/api_games"
 	"github.com/willmroliver/plathbot/src/db"
-	"github.com/willmroliver/plathbot/src/games"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
@@ -22,6 +23,7 @@ const (
 var (
 	accountAPI = account.API()
 	gamesAPI   = games.API()
+	emojiAPI   = emoji.API()
 
 	inlineAPI = &api.InlineAPI{
 		Actions: map[string]api.InlineAction{
@@ -45,6 +47,9 @@ var (
 			"/games": func(c *api.Context, m *botapi.Message) {
 				gamesAPI.Expose(c, nil)
 			},
+			"/emojis": func(c *api.Context, m *botapi.Message) {
+				emojiAPI.Expose(c, nil)
+			},
 			"/adopt": func(c *api.Context, m *botapi.Message) {
 				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
 					util.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
@@ -63,10 +68,12 @@ var (
 		Actions: map[string]api.CallbackAction{
 			accountAPI.Path: accountAPI.Select,
 			gamesAPI.Path:   gamesAPI.Select,
+			emojiAPI.Path:   emojiAPI.Select,
 		},
 		PublicOptions: []map[string]string{
 			{accountAPI.Title: accountAPI.Path},
 			{gamesAPI.Title: gamesAPI.Path},
+			{emojiAPI.Title: emojiAPI.Path},
 		},
 		PublicOnly: true,
 	}

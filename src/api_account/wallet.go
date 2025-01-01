@@ -97,7 +97,8 @@ func (w *Wallet) Update(c *api.Context, query *botapi.CallbackQuery) {
 	msg := w.NewMessage("Okay! Send me a public wallet address to associate to your account.", nil)
 	util.SendConfig(c.Bot, &msg)
 
-	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) {
+	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) (success bool) {
+		success = true
 		w = data.(*Wallet)
 
 		if !w.Is("update") {
@@ -115,6 +116,7 @@ func (w *Wallet) Update(c *api.Context, query *botapi.CallbackQuery) {
 		}})
 
 		util.SendConfig(s.Bot, &msg)
+		return
 	}, w, time.Minute*5)
 
 	c.Server.RegisterMessageHook(query.Message.Chat.ID, hook)
