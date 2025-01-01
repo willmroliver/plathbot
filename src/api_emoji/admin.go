@@ -94,7 +94,11 @@ Okay, send the emoji you'd like to stop tracking.`)
 						reactService := service.NewReactService(s.DB)
 
 						if reactService.Untrack(e) == nil {
-							util.SendBasic(s.Bot, m.Chat.ID, fmt.Sprintf("%s removed", e))
+							i := api.NewInteraction[bool](cq.Message, true)
+							m := util.InlineKeyboard([]map[string]string{{"👈 Back": AdminPath}})
+							u := i.NewMessage(fmt.Sprintf("%s removed", e), &m)
+
+							util.SendConfig(s.Bot, &u)
 							return true
 						}
 
