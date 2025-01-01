@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/joho/godotenv"
-	"github.com/willmroliver/plathbot/src/core"
+	core "github.com/willmroliver/plathbot/src/api_core"
 )
 
 const (

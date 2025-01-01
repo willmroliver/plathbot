@@ -6,6 +6,7 @@ import (
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
+	"github.com/willmroliver/plathbot/src/service"
 )
 
 type Context struct {
@@ -73,7 +74,8 @@ func (ctx *Context) HandleMessageReaction() {
 	ctx.Chat = m.Chat
 	ctx.Message = m
 
-	ctx.UserRepo.UpdateReacts(m)
+	reactService := service.NewReactService(ctx.Server.DB)
+	reactService.UpdateCounts(m)
 
 	switch {
 	case len(m.OldReaction) < len(m.NewReaction):

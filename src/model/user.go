@@ -10,7 +10,7 @@ import (
 
 type User struct {
 	gorm.Model
-	ID           int64                  `json:"id" gorm:"primarykey"`
+	ID           int64                  `json:"id" gorm:"primaryKey"`
 	TelegramUser *botapi.User           `json:"telegram_user" gorm:"-"`
 	Username     string                 `json:"username" gorm:"size:100"`
 	PublicWallet string                 `json:"public_wallet" gorm:"size:100"`

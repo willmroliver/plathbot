@@ -12,6 +12,10 @@ import (
 
 var cache = ds.NewLRUCache[int64, *model.User](100)
 
+func OnUserCache(cb func(*model.User) bool) {
+	cache.ForEach(cb)
+}
+
 type UserRepo struct {
 	*Repo
 }
@@ -23,6 +27,9 @@ func NewUserRepo(db *gorm.DB) *UserRepo {
 }
 
 func (r *UserRepo) Get(u *botapi.User) *model.User {
+	cache.Lock()
+	defer cache.Unlock()
+
 	if user, ok := cache.Load(u.ID); ok && user != nil {
 		return user
 	}
@@ -38,8 +45,10 @@ func (r *UserRepo) Get(u *botapi.User) *model.User {
 	}
 
 	for _, count := range user.ReactCounts {
-		user.ReactMap[count.ID] = count
+		user.ReactMap[count.Emoji] = count
 	}
+
+	cache.Save(user.ID, user)
 
 	return user
 }
@@ -79,57 +88,6 @@ func (r *UserRepo) UpdateWallet(u *botapi.User, addr string) (err error) {
 
 		if err = r.Save(user); err != nil {
 			log.Printf("Error updating user %d record: %q", user.ID, err.Error())
-		}
-	}
-
-	return
-}
-
-func (r *UserRepo) UpdateReacts(m *botapi.Message) (err error) {
-	if m.User == nil || len(m.OldReaction)+len(m.NewReaction) == 0 {
-		return
-	}
-
-	user := r.Get(m.User)
-
-	if user == nil {
-		return
-	}
-
-	for _, react := range m.OldReaction {
-		if react == nil || react.Emoji == "" {
-			continue
-		}
-
-		if data := user.ReactMap[react.Emoji]; data != nil && data.Count > 0 {
-			data.Count -= 1
-			if err = r.Repo.Save(data); err != nil {
-				return
-			}
-		}
-	}
-
-	for _, react := range m.NewReaction {
-		if react == nil || react.Emoji == "" {
-			continue
-		}
-
-		if data := user.ReactMap[react.Emoji]; data != nil {
-			data.Count += 1
-			if err = r.Repo.Save(data); err != nil {
-				return
-			}
-		} else {
-			data = &model.ReactCount{
-				ID:     react.Emoji,
-				UserID: user.ID,
-				Count:  1,
-			}
-
-			user.ReactMap[react.Emoji] = data
-			if err = r.Repo.Save(data); err != nil {
-				return
-			}
 		}
 	}
 
