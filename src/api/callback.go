@@ -86,13 +86,12 @@ func (api *CallbackAPI) Expose(c *Context, m *botapi.CallbackQuery) {
 
 	if m == nil {
 		msg := botapi.NewMessage(c.Chat.ID, api.Title)
-		msg.ReplyMarkup = util.InlineKeyboard(*opts)
+		msg.ReplyMarkup = *util.InlineKeyboard(*opts)
 
 		_, err = c.Bot.Send(msg)
 	} else {
-		options := util.InlineKeyboard(*opts)
 		msg := botapi.NewEditMessageText(c.Chat.ID, m.Message.MessageID, api.Title)
-		msg.ReplyMarkup = &options
+		msg.ReplyMarkup = util.InlineKeyboard(*opts)
 
 		err = util.SendUpdate(c.Bot, &msg)
 	}

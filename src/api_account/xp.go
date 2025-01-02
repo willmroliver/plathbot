@@ -14,13 +14,12 @@ const (
 )
 
 func XPQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.CallbackCmd) {
-	opts := util.InlineKeyboard([]map[string]string{{"👈 Back": Path}})
 	msg := botapi.NewEditMessageText(
 		c.Chat.ID,
 		c.Message.MessageID,
 		fmt.Sprintf("📊 Current XP: %d", c.GetUser().XP),
 	)
-	msg.ReplyMarkup = &opts
+	msg.ReplyMarkup = util.InlineKeyboard([]map[string]string{{"👈 Back": Path}})
 
 	util.SendUpdate(c.Bot, &msg)
 }

@@ -6,7 +6,6 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/db"
-	"github.com/willmroliver/plathbot/src/repo"
 	"github.com/willmroliver/plathbot/src/service"
 )
 
@@ -46,8 +45,17 @@ func TestReactCount(t *testing.T) {
 
 	conn, _ := db.Open(os.Getenv("TEST_DB_NAME"))
 	service := service.NewReactService(conn)
-	userRepo := repo.NewUserRepo(conn)
-	user := userRepo.Get(tgUser)
+	user := service.UserRepo.Get(tgUser)
+
+	// Track Reacts
+	for _, e := range []string{FireEmoji, SmileEmoji} {
+		if err := service.ReactRepo.Save(e, "Title"); err != nil {
+			t.Errorf("ReactRepo Save() - Unexpected error: %q", err.Error())
+			return
+		}
+
+		defer service.ReactRepo.Delete(e)
+	}
 
 	// Add React
 	if err := service.UpdateCounts(addReact); err != nil {
