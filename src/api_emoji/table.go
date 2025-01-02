@@ -53,15 +53,18 @@ func getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 }
 
 func sendTable(c *api.Context, title string, data []*model.ReactCount) {
+	r := repo.NewReactRepo(c.Server.DB)
+
 	text := &strings.Builder{}
 	text.WriteString(title + "\n\n")
 
 	for _, count := range data {
 		text.WriteString(fmt.Sprintf(
-			"%s %s - %d\n",
+			"%s %d\t %s - %s\n",
 			count.Emoji,
-			util.AtString(count.User.FirstName, count.User.ID),
 			count.Count,
+			util.AtString(count.User.FirstName, count.User.ID),
+			r.Get(count.Emoji).Title,
 		))
 	}
 

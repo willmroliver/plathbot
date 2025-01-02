@@ -73,6 +73,7 @@ func (r *UserXPRepo) TopXPs(title, order string, offset, limit int) (c []*model.
 	err := r.db.
 		Where("title = ?", title).
 		Joins("User").
+		Order(order).
 		Offset(offset).
 		Limit(limit).
 		Find(&c).

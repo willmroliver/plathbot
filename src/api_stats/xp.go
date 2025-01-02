@@ -84,7 +84,7 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 	for i, xp := range data {
 		if i == 0 {
 			text.WriteString(fmt.Sprintf(
-				"👑. %s - %d\n",
+				"👑 %s - **%d**\n",
 				util.AtString(xp.User.FirstName, xp.User.ID),
 				get(xp),
 			))
@@ -92,7 +92,7 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 		}
 
 		text.WriteString(fmt.Sprintf(
-			"%d. %s - %d\n",
+			"%d. %s - **%d**\n",
 			i+1,
 			util.AtString(xp.User.FirstName, xp.User.ID),
 			get(xp),
