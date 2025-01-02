@@ -131,7 +131,7 @@ E.g: '💸 High-flyer'`)
 		util.SendConfig(s.Bot, a.NewMessage(fmt.Sprintf("%s saved as %q", e, t), &[]map[string]string{
 			util.KeyboardNavRow(AdminPath),
 		}))
-	}, c.User.ID, time.Minute*5)
+	}, a, time.Minute*5)
 
 	c.Server.RegisterMessageHook(c.Chat.ID, hook)
 }

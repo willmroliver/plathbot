@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	Title = "🙂 Emojis"
-	Path  = "emojis"
+	Title = "📊 Stats"
+	Path  = "stats"
 )
 
 var (
 	emojiAPI = emoji.TableAPI()
-	xpAPI    = XpAPI()
+	xpAPI    = UserXPAPI()
 )
 
 func API() *api.CallbackAPI {
@@ -24,13 +24,13 @@ func API() *api.CallbackAPI {
 		Path,
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
-				"emoji": emojiAPI.Select,
 				"xp":    xpAPI.Select,
+				"emoji": emojiAPI.Select,
 			},
 			PublicCooldown: time.Second * 3,
 			PublicOptions: []map[string]string{
-				{emoji.TableTitle: "table"},
-				{XpTitle: "admin"},
+				{XpTitle: "xp"},
+				{emoji.Title: "emoji"},
 				util.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,

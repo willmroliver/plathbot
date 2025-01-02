@@ -3,21 +3,21 @@ package stats
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
+	"github.com/willmroliver/plathbot/src/service"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
-	XpTitle = "📊 XP Leaderboard"
+	XpTitle = "📈 XP"
 	XpPath  = Path + "/xp"
 )
 
-func XpAPI() *api.CallbackAPI {
+func UserXPAPI() *api.CallbackAPI {
 	return api.NewCallbackAPI(
 		XpTitle,
 		XpPath,
@@ -33,41 +33,77 @@ func XpAPI() *api.CallbackAPI {
 				{"📰 This Week": "week"},
 				util.KeyboardNavRow(".."),
 			},
-			PublicCooldown: time.Second * 5,
-			PublicOnly:     true,
+			PublicOnly: true,
 		},
 	)
 }
 
 func getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
-	r := repo.NewReactCountRepo(c.Server.DB)
-	sendTable(c, "⏳ All-Time Leaderboard", r.TopCounts())
+	r := repo.NewUserXPRepo(c.Server.DB)
+	sendTable(
+		c,
+		"⏳ All-Time",
+		r.TopXPs(service.XPTitleEngage, "count DESC", 0, 5),
+		func(xp *model.UserXP) int64 {
+			return xp.XP
+		},
+	)
 }
 
 func getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
-	r := repo.NewReactCountRepo(c.Server.DB)
-	sendTable(c, "📆 Monthly Leaderboard", r.TopMonthly())
+	r := repo.NewUserXPRepo(c.Server.DB)
+	sendTable(
+		c, "📆 Monthly",
+		r.TopXPs(service.XPTitleEngage, "month_count DESC", 0, 5),
+		func(xp *model.UserXP) int64 {
+			return xp.MonthXP
+		},
+	)
 }
 
 func getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
-	r := repo.NewReactCountRepo(c.Server.DB)
-	sendTable(c, "📰 Weekly Leaderboard", r.TopWeekly())
+	r := repo.NewUserXPRepo(c.Server.DB)
+	sendTable(
+		c,
+		"📰 Weekly",
+		r.TopXPs(service.XPTitleEngage, "week_count DESC", 0, 5),
+		func(xp *model.UserXP) int64 {
+			return xp.WeekXP
+		},
+	)
 }
 
-func sendTable(c *api.Context, title string, data []*model.ReactCount) {
-	user := c.GetUser()
-	text := &strings.Builder{}
-	text.WriteString(title + "\n\n")
+func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*model.UserXP) int64) {
+	if len(data) == 0 {
+		return
+	}
 
-	for _, count := range data {
-		text.WriteString(fmt.Sprintf("%s %s - %d\n", count.Emoji, util.AtString(user.FirstName, user.ID), count.Count))
+	text := &strings.Builder{}
+	text.WriteString(title + " - " + data[0].Title + "\n\n")
+
+	for i, xp := range data {
+		if i == 0 {
+			text.WriteString(fmt.Sprintf(
+				"👑. %s - %d\n",
+				util.AtString(xp.User.FirstName, xp.User.ID),
+				get(xp),
+			))
+			continue
+		}
+
+		text.WriteString(fmt.Sprintf(
+			"%d. %s - %d\n",
+			i+1,
+			util.AtString(xp.User.FirstName, xp.User.ID),
+			get(xp),
+		))
 	}
 
 	msg := botapi.NewEditMessageTextAndMarkup(
 		c.Chat.ID,
 		c.Message.MessageID,
 		text.String(),
-		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(AdminPath)}),
+		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(XpPath)}),
 	)
 	msg.ParseMode = "Markdown"
 

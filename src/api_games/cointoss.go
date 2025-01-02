@@ -9,6 +9,7 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
+	"github.com/willmroliver/plathbot/src/service"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
@@ -189,7 +190,11 @@ func (ct *CoinToss) Toss(c *api.Context, query *botapi.CallbackQuery, heads bool
 	xpText := ""
 	if ct.players[0].ID != ct.players[1].ID {
 		var xp int64 = 100
-		c.UserRepo.ShiftXP(winner, xp)
+
+		service.
+			NewUserXPService(c.Server.DB).
+			UpdateXPs(c.User, service.XPTitleGames, xp)
+
 		xpText = fmt.Sprintf(" +%d XP", xp)
 	}
 

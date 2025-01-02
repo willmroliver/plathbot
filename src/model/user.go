@@ -15,9 +15,10 @@ type User struct {
 	FirstName    string                 `json:"first_name" gorm:"size:64"`
 	Username     string                 `json:"username" gorm:"size:100"`
 	PublicWallet string                 `json:"public_wallet" gorm:"size:100"`
-	XP           int64                  `json:"xp"`
 	ReactCounts  []*ReactCount          `json:"react_counts"`
 	ReactMap     map[string]*ReactCount `json:"-" gorm:"-"`
+	UserXPs      []*UserXP              `json:"user_xps"`
+	UserXPMap    map[string]*UserXP     `json:"xp_map" gorm:"-"`
 }
 
 func NewUser(user *botapi.User) *User {
@@ -26,6 +27,7 @@ func NewUser(user *botapi.User) *User {
 		TelegramUser: user,
 		FirstName:    user.FirstName,
 		ReactMap:     make(map[string]*ReactCount),
+		UserXPMap:    make(map[string]*UserXP),
 	}
 
 	u.Username = u.GetUsername()

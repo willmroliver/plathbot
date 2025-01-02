@@ -49,7 +49,9 @@ func (ctx *Context) HandleMessage() {
 	text := m.Text
 
 	if m.Chat.Type != "private" {
-		ctx.UserRepo.ShiftXP(ctx.User, 10)
+		service.
+			NewUserXPService(ctx.Server.DB).
+			UpdateXPs(ctx.User, service.XPTitleEngage, 10)
 	}
 
 	if !strings.HasPrefix(text, "/") {
@@ -80,9 +82,13 @@ func (ctx *Context) HandleMessageReaction() {
 
 	switch {
 	case len(m.OldReaction) < len(m.NewReaction):
-		ctx.UserRepo.ShiftXP(ctx.User, 10)
+		service.
+			NewUserXPService(ctx.Server.DB).
+			UpdateXPs(ctx.User, service.XPTitleEngage, 10)
 	case len(m.OldReaction) > len(m.NewReaction):
-		ctx.UserRepo.ShiftXP(ctx.User, -10)
+		service.
+			NewUserXPService(ctx.Server.DB).
+			UpdateXPs(ctx.User, service.XPTitleEngage, -10)
 	default:
 		break
 	}

@@ -59,7 +59,7 @@ func TestReactCount(t *testing.T) {
 
 	// Add React
 	if err := service.UpdateCounts(addReact); err != nil {
-		t.Errorf("UpdatedReacts() - Unexpected error: %q", err.Error())
+		t.Errorf("UpdateReacts() - Unexpected error: %q", err.Error())
 	}
 
 	if count, ok := user.ReactMap[FireEmoji]; !ok || count == nil {
@@ -68,7 +68,7 @@ func TestReactCount(t *testing.T) {
 
 	// Change React
 	if err := service.UpdateCounts(changeReact); err != nil {
-		t.Errorf("UpdatedReacts() - Unexpected error: %q", err.Error())
+		t.Errorf("UpdateReacts() - Unexpected error: %q", err.Error())
 	}
 
 	if count, ok := user.ReactMap[FireEmoji]; ok && count.Count > 0 {
@@ -81,7 +81,7 @@ func TestReactCount(t *testing.T) {
 
 	// Remove React
 	if err := service.UpdateCounts(removeReact); err != nil {
-		t.Errorf("UpdatedReacts() - Unexpected error: %q", err.Error())
+		t.Errorf("UpdateReacts() - Unexpected error: %q", err.Error())
 	}
 
 	if count, ok := user.ReactMap[SmileEmoji]; ok && count.Count > 0 {

@@ -39,7 +39,7 @@ func (r *UserRepo) Get(u *botapi.User) *model.User {
 		return nil
 	}
 
-	if err := r.db.Preload("ReactCounts").First(user).Error; err != nil {
+	if err := r.db.Preload("ReactCounts").Preload("UserXPs").First(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			r.Save(user)
 		} else {
@@ -50,6 +50,10 @@ func (r *UserRepo) Get(u *botapi.User) *model.User {
 
 	for _, count := range user.ReactCounts {
 		user.ReactMap[count.Emoji] = count
+	}
+
+	for _, xp := range user.UserXPs {
+		user.UserXPMap[xp.Title] = xp
 	}
 
 	cache.Save(user.ID, user)
@@ -70,19 +74,15 @@ func (r *UserRepo) Save(user *model.User) (err error) {
 		i++
 	}
 
-	err = r.Repo.Save(user)
-	return
-}
+	user.UserXPs = make([]*model.UserXP, len(user.UserXPMap))
+	i = 0
 
-func (r *UserRepo) ShiftXP(u *botapi.User, xp int64) (err error) {
-	if user := r.Get(u); user != nil {
-		user.XP += xp
-
-		if err = r.Save(user); err != nil {
-			log.Printf("Error updating user %d record: %q", user.ID, err.Error())
-		}
+	for _, xp := range user.UserXPMap {
+		user.UserXPs[i] = xp
+		i++
 	}
 
+	err = r.Repo.Save(user)
 	return
 }
 
