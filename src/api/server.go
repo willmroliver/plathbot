@@ -102,20 +102,20 @@ func (s *Server) RegisterMessageHook(chatID int64, hook *MessageHook) {
 	s.messageHooks.Store(chatID, hook)
 }
 
-func (s *Server) DoMessageHook(m *botapi.Message) bool {
+func (s *Server) DoMessageHook(m *botapi.Message) (success bool) {
 	if m == nil {
-		return false
+		return
 	}
 
-	data, exists := s.messageHooks.Load(m.Chat.ID)
+	data, exists := s.messageHooks.LoadAndDelete(m.Chat.ID)
 	if !exists {
-		return false
+		return
 	}
 
-	if data.(*MessageHook).ExpiresAt.Compare(time.Now()) == -1 || data.(*MessageHook).Execute(s, m) {
-		s.messageHooks.Delete(m.Chat.ID)
-		return true
+	if hook := data.(*MessageHook); hook.ExpiresAt.Compare(time.Now()) > -1 {
+		hook.Execute(s, m)
+		success = true
 	}
 
-	return false
+	return
 }

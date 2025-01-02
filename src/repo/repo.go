@@ -10,21 +10,28 @@ import (
 	"gorm.io/gorm"
 )
 
+var repos = map[*gorm.DB]*Repo{}
+
 type Repo struct {
 	db *gorm.DB
 }
 
 func NewRepo(db *gorm.DB) *Repo {
 	if db == nil {
-		conn, err := d.Open(os.Getenv("DB_NAME"))
-		if err != nil {
+		if conn, err := d.Open(os.Getenv("DB_NAME")); err != nil {
 			panic(fmt.Sprintf("Error opening 'test.db': %q", err.Error()))
+		} else {
+			db = conn
 		}
-
-		return &Repo{db: conn}
 	}
 
-	return &Repo{db}
+	if r, ok := repos[db]; ok {
+		return r
+	}
+
+	r := &Repo{db}
+	repos[db] = r
+	return r
 }
 
 func (r *Repo) Save(m any) (err error) {

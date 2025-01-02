@@ -45,7 +45,7 @@ func RequestBasic(bot *botapi.BotAPI, query *botapi.InlineQuery, title, msg stri
 	return
 }
 
-func InlineKeyboard(data []map[string]string) botapi.InlineKeyboardMarkup {
+func InlineKeyboard(data []map[string]string) *botapi.InlineKeyboardMarkup {
 	rows := make([][]botapi.InlineKeyboardButton, len(data))
 
 	for i, row := range data {
@@ -59,8 +59,8 @@ func InlineKeyboard(data []map[string]string) botapi.InlineKeyboardMarkup {
 
 		rows[i] = botapi.NewInlineKeyboardRow(buttons...)
 	}
-
-	return botapi.NewInlineKeyboardMarkup(rows...)
+	res := botapi.NewInlineKeyboardMarkup(rows...)
+	return &res
 }
 
 func AtUserString(user *botapi.User) string {

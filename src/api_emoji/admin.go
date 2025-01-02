@@ -3,6 +3,7 @@ package emoji
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/willmroliver/plathbot/src/api"
@@ -11,12 +12,15 @@ import (
 	"github.com/willmroliver/plathbot/src/util"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"gorm.io/gorm"
 )
 
 const (
 	AdminTitle = "🔐 Manage"
 	AdminPath  = Path + "/admin"
 )
+
+var open = sync.Map{}
 
 func AdminAPI() *api.CallbackAPI {
 	return api.NewCallbackAPI(
@@ -36,40 +40,39 @@ func AdminAPI() *api.CallbackAPI {
 					}
 
 					i := api.NewInteraction[bool](cq.Message, true)
-					m := util.InlineKeyboard([]map[string]string{{"👈 Back": AdminPath}})
-					u := i.NewMessageUpdate(text.String(), &m)
 
-					util.SendUpdate(c.Bot, &u)
+					util.SendUpdate(c.Bot, i.NewMessageUpdate(text.String(), &[]map[string]string{
+						{"👈 Back": AdminPath},
+					}))
 				},
 				"update": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
 					util.SendBasic(c.Bot, c.Chat.ID, `
 Okay, send the emoji you'd like to update and give it a title, space-separated.
 E.g: '💸 High-flyer'`)
 
-					hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) bool {
+					hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) {
 						if m.From.ID != userID.(int64) {
-							return false
+							return
 						}
 
 						i := strings.Index(m.Text, " ")
 						if i == -1 || !util.IsEmoji(m.Text[:i]) || i+1 == len(m.Text) {
-							return false
+							return
 						}
 
 						e, t := m.Text[:i], m.Text[i+1:]
 
 						reactRepo := repo.NewReactRepo(c.Server.DB)
 
-						if reactRepo.Save(e, m.Text[i+1:]) == nil {
-							i := api.NewInteraction[bool](cq.Message, true)
-							m := util.InlineKeyboard([]map[string]string{{"👈 Back": AdminPath}})
-							u := i.NewMessage(fmt.Sprintf("%s saved as %q", e, t), &m)
-
-							util.SendConfig(s.Bot, &u)
-							return true
+						if reactRepo.Save(e, m.Text[i+1:]) != nil {
+							return
 						}
 
-						return false
+						in := api.NewInteraction[bool](cq.Message, true)
+
+						util.SendConfig(s.Bot, in.NewMessage(fmt.Sprintf("%s saved as %q", e, t), &[]map[string]string{
+							{"👈 Back": AdminPath},
+						}))
 					}, c.User.ID, time.Minute*5)
 
 					c.Server.RegisterMessageHook(c.Chat.ID, hook)
@@ -78,31 +81,28 @@ E.g: '💸 High-flyer'`)
 					util.SendBasic(c.Bot, c.Chat.ID, `
 Okay, send the emoji you'd like to stop tracking.`)
 
-					hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) bool {
+					hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) {
 						if m.From.ID != userID.(int64) {
-							return false
+							return
 						}
 
 						e := m.Text
 
 						if i := strings.Index(m.Text, " "); i > 0 {
 							if e = m.Text[:i]; !util.IsEmoji(e) {
-								return false
+								return
 							}
 						}
 
-						reactService := service.NewReactService(s.DB)
-
-						if reactService.Untrack(e) == nil {
-							i := api.NewInteraction[bool](cq.Message, true)
-							m := util.InlineKeyboard([]map[string]string{{"👈 Back": AdminPath}})
-							u := i.NewMessage(fmt.Sprintf("%s removed", e), &m)
-
-							util.SendConfig(s.Bot, &u)
-							return true
+						if reactService := service.NewReactService(s.DB); reactService.Untrack(e) != nil {
+							return
 						}
 
-						return false
+						i := api.NewInteraction[bool](cq.Message, true)
+
+						util.SendConfig(s.Bot, i.NewMessage(fmt.Sprintf("%s removed", e), &[]map[string]string{
+							{"👈 Back": AdminPath},
+						}))
 					}, c.User.ID, time.Minute*5)
 
 					c.Server.RegisterMessageHook(c.Chat.ID, hook)
@@ -116,4 +116,54 @@ Okay, send the emoji you'd like to stop tracking.`)
 			PublicOnly: true,
 		},
 	)
+}
+
+type Admin struct {
+	*api.Interaction[string]
+	service *service.ReactService
+}
+
+func NewAdmin(db *gorm.DB, q *botapi.CallbackQuery) *Admin {
+	return &Admin{
+		api.NewInteraction(q.Message, ""),
+		service.NewReactService(db),
+	}
+}
+
+func OpenAdmin(db *gorm.DB, q *botapi.CallbackQuery) (admin *Admin) {
+	open.Range(func(key any, value any) bool {
+		if value.(*api.Interaction[any]).Age() > time.Minute*5 {
+			open.Delete(key)
+		}
+
+		return true
+	})
+
+	if data, exists := open.Load(q.From.ID); exists {
+		admin = data.(*Admin)
+	} else {
+		admin = NewAdmin(db, q)
+	}
+
+	return
+}
+
+func (a *Admin) View(c *api.Context, query *botapi.CallbackQuery) {
+	reactRepo := repo.NewReactRepo(c.Server.DB)
+	tracked := reactRepo.All()
+
+	text := &strings.Builder{}
+	text.WriteString("Currently tracked:\n\n")
+
+	for _, react := range tracked {
+		text.WriteString(fmt.Sprintf("%s - %s\n", react.Emoji, react.Title))
+	}
+
+	util.SendUpdate(c.Bot, a.NewMessageUpdate(text.String(), &[]map[string]string{
+		{"👈 Back": AdminPath},
+	}))
+}
+
+func (a *Admin) Update(c *api.Context, query *botapi.CallbackQuery) {
+
 }

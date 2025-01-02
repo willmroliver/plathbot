@@ -10,22 +10,31 @@ import (
 	"gorm.io/gorm"
 )
 
+var services = map[*gorm.DB]*ReactService{}
+
 type ReactService struct {
-	userRepo  *repo.UserRepo
-	reactRepo *repo.ReactRepo
-	countRepo *repo.ReactCountRepo
+	UserRepo  *repo.UserRepo
+	ReactRepo *repo.ReactRepo
+	CountRepo *repo.ReactCountRepo
 }
 
 func NewReactService(db *gorm.DB) *ReactService {
-	return &ReactService{
-		userRepo:  repo.NewUserRepo(db),
-		reactRepo: repo.NewReactRepo(db),
-		countRepo: repo.NewReactCountRepo(db),
+	if s, ok := services[db]; ok {
+		return s
 	}
+
+	s := &ReactService{
+		UserRepo:  repo.NewUserRepo(db),
+		ReactRepo: repo.NewReactRepo(db),
+		CountRepo: repo.NewReactCountRepo(db),
+	}
+
+	services[db] = s
+	return s
 }
 
 func (r *ReactService) Untrack(emoji string) (err error) {
-	if err = r.reactRepo.Delete(emoji); err != nil {
+	if err = r.ReactRepo.Delete(emoji); err != nil {
 		return
 	}
 
@@ -34,7 +43,7 @@ func (r *ReactService) Untrack(emoji string) (err error) {
 		return true
 	})
 
-	r.countRepo.DeleteBy(&model.ReactCount{}, "emoji", emoji)
+	r.CountRepo.DeleteBy(&model.ReactCount{}, "emoji", emoji)
 	return
 }
 
@@ -48,7 +57,7 @@ func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 		return
 	}
 
-	user := r.userRepo.Get(m.User)
+	user := r.UserRepo.Get(m.User)
 
 	if user == nil {
 		err = fmt.Errorf("cannot find user %+v", user)
@@ -56,29 +65,29 @@ func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 	}
 
 	for _, react := range m.OldReaction {
-		if react == nil || react.Emoji == "" || r.reactRepo.Get(react.Emoji) == nil {
+		if react == nil || react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
 			continue
 		}
 
 		if data := user.ReactMap[react.Emoji]; data != nil && data.Count > 0 {
-			if err = r.countRepo.ShiftCount(data, -1); err != nil {
+			if err = r.CountRepo.ShiftCount(data, -1); err != nil {
 				return
 			}
 		}
 	}
 
 	for _, react := range m.NewReaction {
-		if react == nil || react.Emoji == "" || r.reactRepo.Get(react.Emoji) == nil {
+		if react == nil || react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
 			continue
 		}
 
 		if data := user.ReactMap[react.Emoji]; data != nil {
-			if err = r.countRepo.ShiftCount(data, 1); err != nil {
+			if err = r.CountRepo.ShiftCount(data, 1); err != nil {
 				return
 			}
 		} else {
 			data = model.NewReactCount(react.Emoji, user.ID)
-			if err = r.countRepo.ShiftCount(data, 1); err != nil {
+			if err = r.CountRepo.ShiftCount(data, 1); err != nil {
 				return
 			}
 
