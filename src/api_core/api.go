@@ -11,6 +11,7 @@ import (
 	account "github.com/willmroliver/plathbot/src/api_account"
 	emoji "github.com/willmroliver/plathbot/src/api_emoji"
 	games "github.com/willmroliver/plathbot/src/api_games"
+	stats "github.com/willmroliver/plathbot/src/api_stats"
 	"github.com/willmroliver/plathbot/src/db"
 	"github.com/willmroliver/plathbot/src/util"
 )
@@ -24,6 +25,7 @@ var (
 	accountAPI = account.API()
 	gamesAPI   = games.API()
 	emojiAPI   = emoji.API()
+	statsAPI   = stats.API()
 
 	inlineAPI = &api.InlineAPI{
 		Actions: map[string]api.InlineAction{
@@ -69,11 +71,13 @@ var (
 			accountAPI.Path: accountAPI.Select,
 			gamesAPI.Path:   gamesAPI.Select,
 			emojiAPI.Path:   emojiAPI.Select,
+			statsAPI.Path:   statsAPI.Select,
 		},
 		PublicOptions: []map[string]string{
 			{accountAPI.Title: accountAPI.Path},
 			{gamesAPI.Title: gamesAPI.Path},
 			{emojiAPI.Title: emojiAPI.Path},
+			{statsAPI.Title: statsAPI.Path},
 		},
 		PublicOnly: true,
 	}

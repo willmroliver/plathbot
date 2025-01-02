@@ -11,6 +11,7 @@ import (
 func Migrate(db *gorm.DB) (err error) {
 	tables := []any{
 		&model.User{},
+		&model.UserXP{},
 		&model.ReactCount{},
 		&model.React{},
 	}

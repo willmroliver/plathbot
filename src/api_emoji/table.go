@@ -3,7 +3,6 @@ package emoji
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
@@ -33,8 +32,7 @@ func TableAPI() *api.CallbackAPI {
 				{"📰 This Week": "week"},
 				util.KeyboardNavRow(".."),
 			},
-			PublicCooldown: time.Second * 5,
-			PublicOnly:     true,
+			PublicOnly: true,
 		},
 	)
 }
@@ -71,7 +69,7 @@ func sendTable(c *api.Context, title string, data []*model.ReactCount) {
 		c.Chat.ID,
 		c.Message.MessageID,
 		text.String(),
-		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(AdminPath)}),
+		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(TablePath)}),
 	)
 	msg.ParseMode = "Markdown"
 

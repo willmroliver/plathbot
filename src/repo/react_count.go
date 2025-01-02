@@ -70,11 +70,19 @@ func (r *ReactCountRepo) List(emoji, order string, offset, lim int) (counts []*m
 func (r *ReactCountRepo) TopCounts() (c []*model.ReactCount) {
 	c = make([]*model.ReactCount, 0)
 
-	if err := r.db.Select(`
-		emoji, 
-		FIRST_VALUE(user_id) OVER (PARTITION BY emoji ORDER BY count DESC) AS user_id,
-		FIRST_VALUE(count) OVER (PARTITION BY emoji ORDER BY count DESC) AS count
-	`).Group("emoji").Joins("User").Find(&c).Error; err != nil {
+	if err := r.db.Raw(`
+		WITH top_counts AS (
+			SELECT 
+				emoji,
+				user_id,
+				count,
+				ROW_NUMBER() OVER (PARTITION BY emoji ORDER BY count DESC, user_id ASC) as rn
+			FROM react_counts
+		)
+		SELECT emoji, user_id, count
+		FROM top_counts
+		WHERE rn = 1
+	`).Preload("User").Find(&c).Error; err != nil {
 		return nil
 	}
 

@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var services = map[*gorm.DB]*ReactService{}
+var reactServices = map[*gorm.DB]*ReactService{}
 
 type ReactService struct {
 	UserRepo  *repo.UserRepo
@@ -19,7 +19,7 @@ type ReactService struct {
 }
 
 func NewReactService(db *gorm.DB) *ReactService {
-	if s, ok := services[db]; ok {
+	if s, ok := reactServices[db]; ok {
 		return s
 	}
 
@@ -29,7 +29,7 @@ func NewReactService(db *gorm.DB) *ReactService {
 		CountRepo: repo.NewReactCountRepo(db),
 	}
 
-	services[db] = s
+	reactServices[db] = s
 	return s
 }
 
