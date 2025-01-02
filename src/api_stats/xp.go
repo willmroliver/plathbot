@@ -43,7 +43,7 @@ func getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 	sendTable(
 		c,
 		"⏳ All-Time",
-		r.TopXPs(service.XPTitleEngage, "count DESC", 0, 5),
+		r.TopXPs(service.XPTitleEngage, "xp DESC", 0, 5),
 		func(xp *model.UserXP) int64 {
 			return xp.XP
 		},
@@ -54,7 +54,7 @@ func getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 	r := repo.NewUserXPRepo(c.Server.DB)
 	sendTable(
 		c, "📆 Monthly",
-		r.TopXPs(service.XPTitleEngage, "month_count DESC", 0, 5),
+		r.TopXPs(service.XPTitleEngage, "month_xp DESC", 0, 5),
 		func(xp *model.UserXP) int64 {
 			return xp.MonthXP
 		},
@@ -66,7 +66,7 @@ func getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 	sendTable(
 		c,
 		"📰 Weekly",
-		r.TopXPs(service.XPTitleEngage, "week_count DESC", 0, 5),
+		r.TopXPs(service.XPTitleEngage, "week_xp DESC", 0, 5),
 		func(xp *model.UserXP) int64 {
 			return xp.WeekXP
 		},
