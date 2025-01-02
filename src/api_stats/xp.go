@@ -1,4 +1,4 @@
-package emoji
+package stats
 
 import (
 	"fmt"
@@ -13,14 +13,14 @@ import (
 )
 
 const (
-	TableTitle = "📊 Rankings"
-	TablePath  = Path + "/table"
+	XpTitle = "📊 XP Leaderboard"
+	XpPath  = Path + "/xp"
 )
 
-func TableAPI() *api.CallbackAPI {
+func XpAPI() *api.CallbackAPI {
 	return api.NewCallbackAPI(
-		TableTitle,
-		TablePath,
+		XpTitle,
+		XpPath,
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
 				"all":   getAll,
@@ -55,16 +55,12 @@ func getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 }
 
 func sendTable(c *api.Context, title string, data []*model.ReactCount) {
+	user := c.GetUser()
 	text := &strings.Builder{}
 	text.WriteString(title + "\n\n")
 
 	for _, count := range data {
-		text.WriteString(fmt.Sprintf(
-			"%s %s - %d\n",
-			count.Emoji,
-			util.AtString(count.User.FirstName, count.User.ID),
-			count.Count,
-		))
+		text.WriteString(fmt.Sprintf("%s %s - %d\n", count.Emoji, util.AtString(user.FirstName, user.ID), count.Count))
 	}
 
 	msg := botapi.NewEditMessageTextAndMarkup(
