@@ -7,6 +7,7 @@ import (
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
 	"github.com/willmroliver/plathbot/src/service"
+	"github.com/willmroliver/plathbot/src/util"
 )
 
 type Context struct {
@@ -96,6 +97,18 @@ func (ctx *Context) HandleCallbackQuery() {
 	ctx.User = m.From
 	ctx.Chat = m.Message.Chat
 	ctx.Message = m.Message
+
+	basic := map[string]func(*Context, *botapi.CallbackQuery){
+		"_delete": func(ctx *Context, q *botapi.CallbackQuery) {
+			u := botapi.NewDeleteMessage(ctx.Chat.ID, q.Message.MessageID)
+			util.SendConfig(ctx.Bot, &u)
+		},
+	}
+
+	if cb, ok := basic[m.Data]; ok {
+		go cb(ctx, m)
+		return
+	}
 
 	go ctx.Server.CallbackAPI.Select(ctx, m, NewCallbackCmd(m.Data))
 }

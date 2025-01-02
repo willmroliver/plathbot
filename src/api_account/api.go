@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/willmroliver/plathbot/src/api"
+	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -28,7 +29,7 @@ func API() *api.CallbackAPI {
 			PrivateOptions: []map[string]string{
 				{WalletTitle: "wallet"},
 				{XPTitle: "xp"},
-				{"👈 Back": ".."},
+				util.KeyboardNavRow(".."),
 			},
 			PrivateOnly: true,
 		},

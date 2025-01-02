@@ -106,6 +106,10 @@ func (api *CallbackAPI) resolveOpts(opts []map[string]string) (res []map[string]
 
 	for i, row := range opts {
 		for k, v := range row {
+			if strings.HasPrefix(v, "_") {
+				continue
+			}
+
 			if v == ".." {
 				if j := strings.LastIndex(api.Path, "/"); j != -1 {
 					res[i][k] = strings.Join([]string{api.Path[:j], v}, "/")

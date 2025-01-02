@@ -44,7 +44,7 @@ func WalletAPI() *api.CallbackAPI {
 			PrivateOptions: []map[string]string{
 				{"✏️ Update": "update"},
 				{"👀 View": "view", "🗑️ Remove": "remove"},
-				{"👈 Back": ".."},
+				util.KeyboardNavRow(".."),
 			},
 			PrivateOnly: true,
 		},

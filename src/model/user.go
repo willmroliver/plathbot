@@ -12,6 +12,7 @@ type User struct {
 	gorm.Model
 	ID           int64                  `json:"id" gorm:"primaryKey"`
 	TelegramUser *botapi.User           `json:"telegram_user" gorm:"-"`
+	FirstName    string                 `json:"first_name" gorm:"size:64"`
 	Username     string                 `json:"username" gorm:"size:100"`
 	PublicWallet string                 `json:"public_wallet" gorm:"size:100"`
 	XP           int64                  `json:"xp"`
@@ -23,6 +24,7 @@ func NewUser(user *botapi.User) *User {
 	u := &User{
 		ID:           user.ID,
 		TelegramUser: user,
+		FirstName:    user.FirstName,
 		ReactMap:     make(map[string]*ReactCount),
 	}
 

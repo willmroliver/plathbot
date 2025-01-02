@@ -16,9 +16,9 @@ func SendBasic(bot *botapi.BotAPI, chatID int64, msg string) (err error) {
 	return
 }
 
-func SendConfig(bot *botapi.BotAPI, msg *botapi.MessageConfig) (err error) {
-	if _, err = bot.Send(*msg); err != nil {
-		log.Printf("Got error: %q, attempting to send %q:", err.Error(), msg.Text)
+func SendConfig(bot *botapi.BotAPI, msg botapi.Chattable) (err error) {
+	if _, err = bot.Send(msg); err != nil {
+		log.Printf("Got error: %q, attempting to send %+v:", err.Error(), msg)
 	}
 
 	return
@@ -61,6 +61,14 @@ func InlineKeyboard(data []map[string]string) *botapi.InlineKeyboardMarkup {
 	}
 	res := botapi.NewInlineKeyboardMarkup(rows...)
 	return &res
+}
+
+func KeyboardNavRow(back string) map[string]string {
+	return map[string]string{"👈 Back": back, "👋 Done": "_delete"}
+}
+
+func AtString(text string, id int64) string {
+	return fmt.Sprintf("[%s](tg://user?id=%d)", text, id)
 }
 
 func AtUserString(user *botapi.User) string {
