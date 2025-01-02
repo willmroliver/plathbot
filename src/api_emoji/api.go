@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/willmroliver/plathbot/src/api"
+	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -12,6 +13,7 @@ const (
 )
 
 var (
+	tableAPI = TableAPI()
 	adminAPI = AdminAPI()
 )
 
@@ -21,12 +23,14 @@ func API() *api.CallbackAPI {
 		Path,
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
+				"table": tableAPI.Select,
 				"admin": adminAPI.Select,
 			},
 			PublicCooldown: time.Second * 3,
 			PublicOptions: []map[string]string{
+				{TableTitle: "table"},
 				{AdminTitle: "admin"},
-				{"👈 Back": ".."},
+				util.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
 		},

@@ -39,9 +39,13 @@ func (r *UserRepo) Get(u *botapi.User) *model.User {
 		return nil
 	}
 
-	if err := r.db.Preload("ReactCounts").First(user).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Printf("Error reading user %d record: %q", user.ID, err.Error())
-		return nil
+	if err := r.db.Preload("ReactCounts").First(user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			r.Save(user)
+		} else {
+			log.Printf("Error reading user %d record: %q", user.ID, err.Error())
+			return nil
+		}
 	}
 
 	for _, count := range user.ReactCounts {

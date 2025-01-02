@@ -51,31 +51,77 @@ func (r *ReactCountRepo) ShiftCount(react *model.ReactCount, count int) (err err
 	return
 }
 
-func (r *ReactCountRepo) TopCount(emoji string) (c *model.ReactCount) {
-	c = &model.ReactCount{Emoji: emoji}
+func (r *ReactCountRepo) List(emoji, order string, offset, lim int) (counts []*model.ReactCount) {
+	counts = make([]*model.ReactCount, 0)
 
-	if err := r.TopBy(c, "count DESC"); err != nil {
+	if order != "" {
+		r.db.Order(order)
+	}
+
+	if emoji != "" {
+		r.db.Where("emoji = ?", emoji)
+	}
+
+	r.db.Offset(offset).Limit(lim).Find(&counts)
+	return
+}
+
+// TopCounts returns the all-time highest count & user for each tracked emoji
+func (r *ReactCountRepo) TopCounts() (c []*model.ReactCount) {
+	c = make([]*model.ReactCount, 0)
+
+	if err := r.db.Select(`
+		emoji, 
+		FIRST_VALUE(user_id) OVER (PARTITION BY emoji ORDER BY count DESC) AS user_id,
+		FIRST_VALUE(count) OVER (PARTITION BY emoji ORDER BY count DESC) AS count
+	`).Group("emoji").Joins("User").Find(&c).Error; err != nil {
 		return nil
 	}
 
 	return
 }
 
-func (r *ReactCountRepo) TopWeekCount(emoji string) (c *model.ReactCount) {
-	c = &model.ReactCount{Emoji: emoji}
+// TopMonthly returns the all-time highest count & user for each tracked emoji
+//
+// The `Count` field is populated with the MonthCount value to support code-homogeneity
+func (r *ReactCountRepo) TopMonthly() (c []*model.ReactCount) {
+	c = make([]*model.ReactCount, 0)
 
-	if err := r.TopBy(c, "count_week DESC"); err != nil {
+	if err := r.db.Select(`
+		emoji, 
+		FIRST_VALUE(user_id) OVER (PARTITION BY emoji ORDER BY month_count DESC) AS user_id,
+		FIRST_VALUE(month_count) OVER (PARTITION BY emoji ORDER BY month_count DESC) AS count
+	`).Group("emoji").Joins("User").Find(&c).Error; err != nil {
 		return nil
+	}
+
+	for _, count := range c {
+		if count != nil {
+			count.MonthCount = count.Count
+		}
 	}
 
 	return
 }
 
-func (r *ReactCountRepo) TopMonthCount(emoji string) (c *model.ReactCount) {
-	c = &model.ReactCount{Emoji: emoji}
+// TopWeekly returns the all-time highest count & user for each tracked emoji
+//
+// The `Count` field is populated with the WeekCount value to support code-homogeneity
+func (r *ReactCountRepo) TopWeekly() (c []*model.ReactCount) {
+	c = make([]*model.ReactCount, 0)
 
-	if err := r.TopBy(c, "count_month DESC"); err != nil {
+	if err := r.db.Select(`
+		emoji,
+		FIRST_VALUE(user_id) OVER (PARTITION BY emoji ORDER BY week_count DESC) AS user_id,
+		FIRST_VALUE(week_count) OVER (PARTITION BY emoji ORDER BY week_count DESC) AS count
+	`).Group("emoji").Joins("User").Find(&c).Error; err != nil {
 		return nil
+	}
+
+	for _, count := range c {
+		if count != nil {
+			count.WeekCount = count.Count
+		}
 	}
 
 	return
