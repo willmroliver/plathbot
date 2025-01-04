@@ -1,11 +1,17 @@
 package repo
 
 import (
+	"sync"
 	"time"
 
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/util"
 	"gorm.io/gorm"
+)
+
+var (
+	xpTitles    map[string]bool = nil
+	xpTitlesMux                 = &sync.Mutex{}
 )
 
 type UserXPRepo struct {
@@ -47,7 +53,43 @@ func (r *UserXPRepo) ShiftXP(xp *model.UserXP, points int64) (err error) {
 	xp.WeekXP = shift(xp.WeekXP, points)
 	xp.MonthXP = shift(xp.MonthXP, points)
 
-	err = r.Save(xp)
+	if err = r.Save(xp); err != nil {
+		xpTitlesMux.Lock()
+		defer xpTitlesMux.Unlock()
+
+		xpTitles[xp.Title] = true
+	}
+
+	return
+}
+
+func (r *UserXPRepo) Titles() (titles []string) {
+	xpTitlesMux.Lock()
+	defer xpTitlesMux.Unlock()
+
+	if xpTitles != nil {
+		titles = make([]string, len(xpTitles))
+		i := 0
+
+		for title := range xpTitles {
+			titles[i] = title
+			i++
+		}
+
+		return titles
+	}
+
+	xpTitles = make(map[string]bool)
+	titles = make([]string, 0)
+
+	if err := r.db.Model(&model.UserXP{}).Distinct("title").Pluck("title", &titles).Error; err != nil {
+		return nil
+	}
+
+	for _, title := range titles {
+		xpTitles[title] = true
+	}
+
 	return
 }
 

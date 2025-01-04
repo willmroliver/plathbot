@@ -1,10 +1,10 @@
 package stats
 
 import (
-	"time"
-
+	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
 	emoji "github.com/willmroliver/plathbot/src/api_emoji"
+	"github.com/willmroliver/plathbot/src/repo"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
@@ -13,25 +13,39 @@ const (
 	Path  = "stats"
 )
 
-var (
-	emojiAPI = emoji.TableAPI()
-	xpAPI    = UserXPAPI()
-)
+var emojiAPI = emoji.TableAPI()
 
 func API() *api.CallbackAPI {
 	return api.NewCallbackAPI(
 		Title,
 		Path,
 		&api.CallbackConfig{
-			Actions: map[string]api.CallbackAction{
-				"xp":    xpAPI.Select,
-				"emoji": emojiAPI.Select,
+			DynamicActions: func(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (actions map[string]api.CallbackAction) {
+				actions = make(map[string]api.CallbackAction)
+				if titles := repo.NewUserXPRepo(c.Server.DB).Titles(); titles != nil {
+					for _, title := range titles {
+						actions[title] = UserXPAPI(title).Select
+					}
+				}
+
+				actions["emojis"] = emojiAPI.Select
+				return
 			},
-			PublicCooldown: time.Second * 3,
-			PublicOptions: []map[string]string{
-				{XpTitle: "xp"},
-				{emoji.Title: "emoji"},
-				util.KeyboardNavRow(".."),
+			DynamicOptions: func(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (options []map[string]string) {
+				if titles := repo.NewUserXPRepo(c.Server.DB).Titles(); titles != nil {
+					options = make([]map[string]string, len(titles)+2)
+
+					for i, title := range titles {
+						options[i] = map[string]string{title: title}
+					}
+
+					options[len(options)-2] = map[string]string{emoji.Title: "emojis"}
+					options[len(options)-1] = util.KeyboardNavRow("..")
+
+					return
+				}
+
+				return []map[string]string{{emoji.Title: "emojis"}, util.KeyboardNavRow("..")}
 			},
 			PublicOnly: true,
 		},

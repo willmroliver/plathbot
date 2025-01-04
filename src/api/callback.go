@@ -14,6 +14,8 @@ type CallbackAction func(*Context, *botapi.CallbackQuery, *CallbackCmd)
 
 type CallbackConfig struct {
 	Actions        map[string]CallbackAction
+	DynamicActions func(*Context, *botapi.CallbackQuery, *CallbackCmd) map[string]CallbackAction
+	DynamicOptions func(*Context, *botapi.CallbackQuery, *CallbackCmd) []map[string]string
 	PublicOptions  []map[string]string
 	PublicCooldown time.Duration
 	PublicOnly     bool
@@ -24,6 +26,8 @@ type CallbackConfig struct {
 type CallbackAPI struct {
 	Title          string
 	Actions        map[string]CallbackAction
+	DynamicActions func(*Context, *botapi.CallbackQuery, *CallbackCmd) map[string]CallbackAction
+	DynamicOptions func(*Context, *botapi.CallbackQuery, *CallbackCmd) []map[string]string
 	PublicOptions  []map[string]string
 	PublicCooldown time.Duration
 	PublicOnly     bool
@@ -36,6 +40,8 @@ func NewCallbackAPI(title, path string, config *CallbackConfig) (api *CallbackAP
 	api = &CallbackAPI{
 		Title:          title,
 		Actions:        config.Actions,
+		DynamicActions: config.DynamicActions,
+		DynamicOptions: config.DynamicOptions,
 		PublicOptions:  config.PublicOptions,
 		PublicCooldown: config.PublicCooldown,
 		PublicOnly:     config.PublicOnly,
@@ -44,19 +50,29 @@ func NewCallbackAPI(title, path string, config *CallbackConfig) (api *CallbackAP
 		Path:           path,
 	}
 
-	api.PublicOptions = api.resolveOpts(api.PublicOptions)
-	api.PrivateOptions = api.resolveOpts(api.PrivateOptions)
+	if config.DynamicOptions == nil {
+		api.PublicOptions = api.resolveOpts(api.PublicOptions)
+		api.PrivateOptions = api.resolveOpts(api.PrivateOptions)
+	}
 
 	return
 }
 
-func (api *CallbackAPI) Select(c *Context, msg *botapi.CallbackQuery, cmd *CallbackCmd) {
-	if action, exists := api.Actions[cmd.Get()]; exists {
-		action(c, msg, cmd.Next())
+func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *CallbackCmd) {
+	if api.DynamicActions != nil {
+		api.Actions = api.DynamicActions(c, q, cc)
+	}
+
+	if api.DynamicOptions != nil {
+		api.PublicOptions = api.resolveOpts(api.DynamicOptions(c, q, cc))
+	}
+
+	if action, exists := api.Actions[cc.Get()]; exists {
+		action(c, q, cc.Next())
 		return
 	}
 
-	api.Expose(c, msg)
+	api.Expose(c, q)
 }
 
 func (api *CallbackAPI) Expose(c *Context, m *botapi.CallbackQuery) {
@@ -78,7 +94,7 @@ func (api *CallbackAPI) Expose(c *Context, m *botapi.CallbackQuery) {
 	}
 
 	opts := &api.PublicOptions
-	if private && !api.PublicOnly {
+	if private && !api.PublicOnly && api.DynamicOptions == nil {
 		opts = &api.PrivateOptions
 	}
 

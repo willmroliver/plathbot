@@ -59,13 +59,15 @@ func sendTable(c *api.Context, title string, data []*model.ReactCount) {
 	text.WriteString(title + "\n\n")
 
 	for _, count := range data {
-		text.WriteString(fmt.Sprintf(
-			"%s %d\t %s - %s\n",
-			count.Emoji,
-			count.Count,
-			util.AtString(count.User.FirstName, count.User.ID),
-			r.Get(count.Emoji).Title,
-		))
+		if react := r.Get(count.Emoji); react != nil {
+			text.WriteString(fmt.Sprintf(
+				"%s %d\t %s - %s\n",
+				count.Emoji,
+				count.Count,
+				util.AtString(count.User.FirstName, count.User.ID),
+				react.Title,
+			))
+		}
 	}
 
 	msg := botapi.NewEditMessageTextAndMarkup(

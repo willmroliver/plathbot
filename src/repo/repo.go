@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	d "github.com/willmroliver/plathbot/src/db"
 	"gorm.io/gorm"
 )
 
-var repos = map[*gorm.DB]*Repo{}
+var (
+	repos    = map[*gorm.DB]*Repo{}
+	reposMux = &sync.Mutex{}
+)
 
 type Repo struct {
 	db *gorm.DB
@@ -25,7 +29,10 @@ func NewRepo(db *gorm.DB) *Repo {
 		}
 	}
 
-	if r, ok := repos[db]; ok {
+	reposMux.Lock()
+	defer reposMux.Unlock()
+
+	if r := repos[db]; r != nil {
 		return r
 	}
 
