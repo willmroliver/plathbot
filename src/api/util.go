@@ -115,7 +115,7 @@ func KeyboardButton(text, data string, tags ...string) botapi.InlineKeyboardButt
 	}
 
 	if prefix := strings.Join(tags, ","); prefix != "" {
-		data = prefix + " " + data
+		data = prefix + "|" + data
 	}
 
 	return botapi.NewInlineKeyboardButtonData(text, data)

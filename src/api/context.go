@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -98,6 +99,8 @@ func (ctx *Context) HandleCallbackQuery() {
 	if m == nil || m.From == nil {
 		return
 	}
+
+	log.Printf("Q: %q", m.Data)
 
 	ctx.User = m.From
 	ctx.Chat = m.Message.Chat

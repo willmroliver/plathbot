@@ -105,7 +105,9 @@ func (t XPTitle) sendTable(c *api.Context, title string, data []*model.UserXP, g
 		c.Chat.ID,
 		c.Message.MessageID,
 		text.String(),
-		*api.InlineKeyboard([]map[string]string{api.KeyboardNavRow(XpPath + "/" + string(t))}),
+		*api.InlineKeyboard([]map[string]string{
+			api.KeyboardNavRow(XpPath + "/" + string(t)),
+		}),
 	)
 	msg.ParseMode = "Markdown"
 

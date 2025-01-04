@@ -80,6 +80,8 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 	if action, exists := api.Actions[cc.Get()]; exists {
 		action(c, q, cc.Next())
 		return
+	} else {
+		log.Printf("Not found: %q, %+v", cc.Get(), api.Actions)
 	}
 
 	if s, ok := cc.Tags["user"]; ok {
@@ -88,7 +90,7 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 		}
 	}
 
-	if cb, ok := builtin[q.Data]; ok {
+	if cb, ok := builtin[cc.Path()]; ok {
 		go cb(c, q)
 		return
 	}
@@ -188,7 +190,7 @@ func NewCallbackCmd(cmd string) *CallbackCmd {
 	tags := map[string]string{}
 	from := 0
 
-	i := strings.Index(cmd, " ")
+	i := strings.Index(cmd, "|")
 	if i != -1 && i < len(cmd)-1 {
 		vals := cmd[:i]
 		cmd = cmd[i+1:]
