@@ -140,7 +140,7 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 
 	ct.players[1] = query.From
 
-	msg := ct.NewMessageUpdate(fmt.Sprintf("%s, heads or tails?", api.AtUserString(ct.GetChosen())), &[]map[string]string{{
+	msg := ct.NewMessageUpdate(api.AtUserString(ct.GetChosen())+", heads or tails?", &[]map[string]string{{
 		"🙉 Heads": ct.getCmd("heads"),
 		"🐒 Tails": ct.getCmd("tails"),
 	}})
@@ -223,5 +223,5 @@ func (ct *CoinToss) getCmd(cmd string) string {
 }
 
 func (ct *CoinToss) playerPrefix() string {
-	return fmt.Sprintf("%s vs %s", api.AtUserString(ct.players[0]), api.AtUserString(ct.players[1]))
+	return api.AtUserString(ct.players[0]) + " vs " + api.AtUserString(ct.players[1])
 }

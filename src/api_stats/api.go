@@ -21,6 +21,7 @@ func API() *api.CallbackAPI {
 		&api.CallbackConfig{
 			DynamicActions: func(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (actions map[string]api.CallbackAction) {
 				actions = make(map[string]api.CallbackAction)
+
 				if titles := repo.NewUserXPRepo(c.Server.DB).Titles(); titles != nil {
 					for _, title := range titles {
 						actions[title] = UserXPAPI(title).Select

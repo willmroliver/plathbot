@@ -51,7 +51,11 @@ func RequestBasic(bot *botapi.BotAPI, query *botapi.InlineQuery, title, msg stri
 	return
 }
 
-func InlineKeyboard(data []map[string]string) *botapi.InlineKeyboardMarkup {
+// InlineKeyboard converts an array of Text:Data maps into a TG inline keyboard.
+// Data supports functions which can request special button types.
+//
+// Optional tags can be passed which are prepended as a comma-separated list: "data" -> "arg1,arg2,... data"
+func InlineKeyboard(data []map[string]string, tags ...string) *botapi.InlineKeyboardMarkup {
 	rows := make([][]botapi.InlineKeyboardButton, len(data))
 
 	for i, row := range data {
@@ -59,35 +63,40 @@ func InlineKeyboard(data []map[string]string) *botapi.InlineKeyboardMarkup {
 		j := 0
 
 		for text, data := range row {
-			buttons[j] = KeyboardButton(text, data)
+			buttons[j] = KeyboardButton(text, data, tags...)
 			j++
 		}
 
 		rows[i] = botapi.NewInlineKeyboardRow(buttons...)
 	}
+
 	res := botapi.NewInlineKeyboardMarkup(rows...)
 	return &res
 }
 
-// KeyboardSwitch creates a string key with embedded information for InlineKeyboard() to generate an inline query switch button
+// KeyboardSwitch creates a string key with embedded information
+// for KeyboardButton(result) to generate an inline query switch button
 func KeyboardInlineSwitch(query string) string {
-	return fmt.Sprintf("%s(%s)", keyboardSwitchCode, query)
+	return keyboardSwitchCode + "(" + query + ")"
 }
 
+// KeyboardSwitch creates a string key with embedded information
+// for KeyboardButton(result) to generate a URL button
 func KeyboardLink(url string) string {
-	return fmt.Sprintf("%s(%s)", keyboardLinkCode, url)
+	return keyboardLinkCode + "(" + url + ")"
 }
 
-// KeyboardButton interprets a button data string to support in-built functions that select particular button types.
+// KeyboardButton interprets a button data string to support in-built functions
+// that select particular button types, or to prefix tags to a data-button payload.
 //
-// Data must be of the form `!!x(arg1,arg2,...)`, where 'x' is some character selecting a button-type code, and the args
+// Data must be of the form `!!x(arg1,arg2,...)`,
+// where 'x' is some character selecting a button-type code, and the args
 // are passed to the `NewInlineKeyboardButton[Data/Switch/...]()` func
 //
 // Supported currently:
-//
-// !!s - NewInlineKeyboardButtonSwitch(text, query)
-// !!l - NewInlineKeyboardButtonURL(text, url)
-func KeyboardButton(text, data string) botapi.InlineKeyboardButton {
+//   - !!s(text, query) - NewInlineKeyboardButtonSwitch(text, url)\n
+//   - !!l(text, url) - NewInlineKeyboardButtonURL(text, url)
+func KeyboardButton(text, data string, tags ...string) botapi.InlineKeyboardButton {
 	ops := map[string]func(text string, args ...string) botapi.InlineKeyboardButton{
 		keyboardSwitchCode: func(text string, args ...string) botapi.InlineKeyboardButton {
 			return botapi.NewInlineKeyboardButtonSwitch(text, args[0])
@@ -103,6 +112,10 @@ func KeyboardButton(text, data string) botapi.InlineKeyboardButton {
 				return op(text, strings.Split(data[i+1:len(data)-1], ",")...)
 			}
 		}
+	}
+
+	if prefix := strings.Join(tags, ","); prefix != "" {
+		data = prefix + " " + data
 	}
 
 	return botapi.NewInlineKeyboardButtonData(text, data)
@@ -125,7 +138,7 @@ func AtUserString(user *botapi.User) string {
 }
 
 func AtBotString(bot *botapi.BotAPI) string {
-	return fmt.Sprintf("[@%s](https://t.me/%s)", bot.Self.UserName, bot.Self.UserName)
+	return "[@" + bot.Self.UserName + "](https://t.me/" + bot.Self.UserName + ")"
 }
 
 func ToPrivateString(bot *botapi.BotAPI, cmd string) string {

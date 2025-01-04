@@ -19,7 +19,7 @@ func XPQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.CallbackCmd) 
 		c.Message.MessageID,
 		fmt.Sprintf("📊 Current XP: %d", c.GetUser().UserXPMap[service.XPTitleEngage].XP),
 	)
-	msg.ReplyMarkup = api.InlineKeyboard([]map[string]string{api.KeyboardNavRow("..")})
+	msg.ReplyMarkup = api.InlineKeyboard([]map[string]string{api.KeyboardNavRow(Path)})
 
 	api.SendUpdate(c.Bot, &msg)
 }

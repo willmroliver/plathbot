@@ -9,10 +9,6 @@ import (
 	"github.com/willmroliver/plathbot/src/service"
 )
 
-const (
-	BuiltInDelete = "_delete"
-)
-
 type Context struct {
 	Server   *Server
 	Bot      *botapi.BotAPI
@@ -106,18 +102,6 @@ func (ctx *Context) HandleCallbackQuery() {
 	ctx.User = m.From
 	ctx.Chat = m.Message.Chat
 	ctx.Message = m.Message
-
-	basic := map[string]func(*Context, *botapi.CallbackQuery){
-		BuiltInDelete: func(ctx *Context, q *botapi.CallbackQuery) {
-			u := botapi.NewDeleteMessage(ctx.Chat.ID, q.Message.MessageID)
-			SendConfig(ctx.Bot, &u)
-		},
-	}
-
-	if cb, ok := basic[m.Data]; ok {
-		go cb(ctx, m)
-		return
-	}
 
 	go ctx.Server.CallbackAPI.Select(ctx, m, NewCallbackCmd(m.Data))
 }
