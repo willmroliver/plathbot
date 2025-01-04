@@ -8,29 +8,30 @@ import (
 	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
-	"github.com/willmroliver/plathbot/src/service"
 	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
 	XpTitle = "📈 XP"
-	XpPath  = Path + "/xp"
+	XpPath  = Path
 )
 
-func UserXPAPI() *api.CallbackAPI {
+func UserXPAPI(title string) *api.CallbackAPI {
+	all, month, week := "all", "week", "month"
+
 	return api.NewCallbackAPI(
-		XpTitle,
-		XpPath,
+		title,
+		fmt.Sprintf("%s/%s", XpPath, title),
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
-				"all":   getAll,
-				"month": getMonthly,
-				"week":  getWeekly,
+				all:   XPTitle(title).getAll,
+				month: XPTitle(title).getMonthly,
+				week:  XPTitle(title).getWeekly,
 			},
 			PublicOptions: []map[string]string{
-				{"⏳ All-Time": "all"},
-				{"📆 Monthly": "month"},
-				{"📰 This Week": "week"},
+				{"⏳ All-Time": all},
+				{"📆 Monthly": month},
+				{"📰 This Week": week},
 				util.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
@@ -38,35 +39,37 @@ func UserXPAPI() *api.CallbackAPI {
 	)
 }
 
-func getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
+type XPTitle string
+
+func (t XPTitle) getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 	r := repo.NewUserXPRepo(c.Server.DB)
 	sendTable(
 		c,
 		"⏳ All-Time",
-		r.TopXPs(service.XPTitleEngage, "xp DESC", 0, 5),
+		r.TopXPs(string(t), "xp DESC", 0, 5),
 		func(xp *model.UserXP) int64 {
 			return xp.XP
 		},
 	)
 }
 
-func getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
+func (t XPTitle) getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 	r := repo.NewUserXPRepo(c.Server.DB)
 	sendTable(
 		c, "📆 Monthly",
-		r.TopXPs(service.XPTitleEngage, "month_xp DESC", 0, 5),
+		r.TopXPs(string(t), "month_xp DESC", 0, 5),
 		func(xp *model.UserXP) int64 {
 			return xp.MonthXP
 		},
 	)
 }
 
-func getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
+func (t XPTitle) getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 	r := repo.NewUserXPRepo(c.Server.DB)
 	sendTable(
 		c,
 		"📰 Weekly",
-		r.TopXPs(service.XPTitleEngage, "week_xp DESC", 0, 5),
+		r.TopXPs(string(t), "week_xp DESC", 0, 5),
 		func(xp *model.UserXP) int64 {
 			return xp.WeekXP
 		},
@@ -84,7 +87,7 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 	for i, xp := range data {
 		if i == 0 {
 			text.WriteString(fmt.Sprintf(
-				"👑 %s - **%d**\n",
+				"👑 %s - %d\n",
 				util.AtString(xp.User.FirstName, xp.User.ID),
 				get(xp),
 			))
@@ -92,7 +95,7 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 		}
 
 		text.WriteString(fmt.Sprintf(
-			"%d. %s - **%d**\n",
+			"%d. %s - %d\n",
 			i+1,
 			util.AtString(xp.User.FirstName, xp.User.ID),
 			get(xp),
@@ -103,7 +106,7 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 		c.Chat.ID,
 		c.Message.MessageID,
 		text.String(),
-		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(XpPath)}),
+		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(fmt.Sprintf("%s/%s", XpPath, title))}),
 	)
 	msg.ParseMode = "Markdown"
 

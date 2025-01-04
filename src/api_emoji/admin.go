@@ -124,6 +124,10 @@ E.g: '💸 High-flyer'`)
 		}
 
 		e, t := m.Text[:i], m.Text[i+1:]
+		if e == "\u2665" {
+			e = "\u2764\ufe0f"
+		}
+
 		if a.service.ReactRepo.Save(e, t) != nil {
 			return
 		}
