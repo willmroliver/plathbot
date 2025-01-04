@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/willmroliver/plathbot/src/api"
-	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -30,7 +29,7 @@ func API() *api.CallbackAPI {
 			PublicOptions: []map[string]string{
 				{TableTitle: "table"},
 				{AdminTitle: "admin"},
-				util.KeyboardNavRow(".."),
+				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
 		},

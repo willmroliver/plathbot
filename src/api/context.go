@@ -7,7 +7,10 @@ import (
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
 	"github.com/willmroliver/plathbot/src/service"
-	"github.com/willmroliver/plathbot/src/util"
+)
+
+const (
+	BuiltInDelete = "_delete"
 )
 
 type Context struct {
@@ -105,9 +108,9 @@ func (ctx *Context) HandleCallbackQuery() {
 	ctx.Message = m.Message
 
 	basic := map[string]func(*Context, *botapi.CallbackQuery){
-		"_delete": func(ctx *Context, q *botapi.CallbackQuery) {
+		BuiltInDelete: func(ctx *Context, q *botapi.CallbackQuery) {
 			u := botapi.NewDeleteMessage(ctx.Chat.ID, q.Message.MessageID)
-			util.SendConfig(ctx.Bot, &u)
+			SendConfig(ctx.Bot, &u)
 		},
 	}
 

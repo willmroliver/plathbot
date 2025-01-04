@@ -120,7 +120,7 @@ func (ct *CoinToss) RequestToss(query *botapi.CallbackQuery) (err error) {
 	}
 
 	msg := ct.NewMessageUpdate(
-		util.AtUserString(ct.players[0])+" wants to toss a coin...",
+		api.AtUserString(ct.players[0])+" wants to toss a coin...",
 		&[]map[string]string{{"Play!": ct.getCmd("accept")}},
 	)
 
@@ -140,7 +140,7 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 
 	ct.players[1] = query.From
 
-	msg := ct.NewMessageUpdate(fmt.Sprintf("%s, heads or tails?", util.AtUserString(ct.GetChosen())), &[]map[string]string{{
+	msg := ct.NewMessageUpdate(fmt.Sprintf("%s, heads or tails?", api.AtUserString(ct.GetChosen())), &[]map[string]string{{
 		"🙉 Heads": ct.getCmd("heads"),
 		"🐒 Tails": ct.getCmd("tails"),
 	}})
@@ -170,7 +170,7 @@ func (ct *CoinToss) Toss(c *api.Context, query *botapi.CallbackQuery, heads bool
 
 	gameText := fmt.Sprintf(`
 %s: %s
-%s chooses %s ...`, CointossTitle, ct.playerPrefix(), util.AtUserString(ct.GetChosen()), choice)
+%s chooses %s ...`, CointossTitle, ct.playerPrefix(), api.AtUserString(ct.GetChosen()), choice)
 
 	msg := ct.NewMessageUpdate(gameText, nil)
 	ct.bot.Send(msg)
@@ -210,7 +210,7 @@ The coin lands... %s`, gameText, result)
 	gameText = fmt.Sprintf(`
 %s
 
-%s wins!%s`, gameText, util.AtUserString(winner), xpText)
+%s wins!%s`, gameText, api.AtUserString(winner), xpText)
 
 	msg = ct.NewMessageUpdate(gameText, nil)
 	ct.bot.Send(msg)
@@ -223,5 +223,5 @@ func (ct *CoinToss) getCmd(cmd string) string {
 }
 
 func (ct *CoinToss) playerPrefix() string {
-	return fmt.Sprintf("%s vs %s", util.AtUserString(ct.players[0]), util.AtUserString(ct.players[1]))
+	return fmt.Sprintf("%s vs %s", api.AtUserString(ct.players[0]), api.AtUserString(ct.players[1]))
 }

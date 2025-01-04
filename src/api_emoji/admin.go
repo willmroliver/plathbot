@@ -48,7 +48,7 @@ func AdminAPI() *api.CallbackAPI {
 			PublicOptions: []map[string]string{
 				{"✏️ Update": "update"},
 				{"👀 View": "view", "🗑️ Remove": "remove"},
-				util.KeyboardNavRow(".."),
+				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
 		},
@@ -102,13 +102,13 @@ func (a *Admin) View(c *api.Context, query *botapi.CallbackQuery) {
 		text.WriteString(fmt.Sprintf("%s - %s\n", react.Emoji, react.Title))
 	}
 
-	util.SendUpdate(c.Bot, a.NewMessageUpdate(text.String(), &[]map[string]string{
-		util.KeyboardNavRow(AdminPath),
+	api.SendUpdate(c.Bot, a.NewMessageUpdate(text.String(), &[]map[string]string{
+		api.KeyboardNavRow(AdminPath),
 	}))
 }
 
 func (a *Admin) Update(c *api.Context, query *botapi.CallbackQuery) {
-	util.SendBasic(c.Bot, c.Chat.ID, `
+	api.SendBasic(c.Bot, c.Chat.ID, `
 Okay, send the emoji you'd like to update and give it a title, space-separated.
 E.g: '💸 High-flyer'`)
 
@@ -132,8 +132,8 @@ E.g: '💸 High-flyer'`)
 			return
 		}
 
-		util.SendConfig(s.Bot, a.NewMessage(fmt.Sprintf("%s saved as %q", e, t), &[]map[string]string{
-			util.KeyboardNavRow(AdminPath),
+		api.SendConfig(s.Bot, a.NewMessage(fmt.Sprintf("%s saved as %q", e, t), &[]map[string]string{
+			api.KeyboardNavRow(AdminPath),
 		}))
 	}, a, time.Minute*5)
 
@@ -141,7 +141,7 @@ E.g: '💸 High-flyer'`)
 }
 
 func (a *Admin) Remove(c *api.Context, query *botapi.CallbackQuery) {
-	util.SendBasic(c.Bot, c.Chat.ID, `
+	api.SendBasic(c.Bot, c.Chat.ID, `
 Okay, send the emoji you'd like to stop tracking.`)
 
 	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) {
@@ -161,8 +161,8 @@ Okay, send the emoji you'd like to stop tracking.`)
 			return
 		}
 
-		util.SendConfig(s.Bot, a.NewMessage(fmt.Sprintf("%s removed", e), &[]map[string]string{
-			util.KeyboardNavRow(AdminPath),
+		api.SendConfig(s.Bot, a.NewMessage(fmt.Sprintf("%s removed", e), &[]map[string]string{
+			api.KeyboardNavRow(AdminPath),
 		}))
 	}, c.User.ID, time.Minute*5)
 

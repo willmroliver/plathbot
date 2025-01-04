@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/willmroliver/plathbot/src/api"
-	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -23,7 +22,7 @@ func API() *api.CallbackAPI {
 			PublicCooldown: time.Second * 3,
 			PublicOptions: []map[string]string{
 				{CointossTitle: "cointoss"},
-				util.KeyboardNavRow(".."),
+				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
 		},
