@@ -50,7 +50,7 @@ func (r *Repo) Save(m any) (err error) {
 }
 
 func (r *Repo) DeleteBy(m any, col string, val any) (err error) {
-	if err = r.db.Where(fmt.Sprintf("%s = ?", col), val).Delete(m).Error; err != nil {
+	if err = r.db.Where(col+" = ?", val).Delete(m).Error; err != nil {
 		log.Printf("Repo Delete() error: %q", err.Error())
 	}
 
@@ -66,7 +66,7 @@ func (r *Repo) Delete(m any) (err error) {
 }
 
 func (r *Repo) GetBy(m any, col string, val any) (err error) {
-	err = r.db.Where(fmt.Sprintf("%s = ?", col), val).First(m).Error
+	err = r.db.Where(col+" = ?", val).First(m).Error
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Printf("Repo Get() error: %q", err.Error())

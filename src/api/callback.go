@@ -3,11 +3,25 @@ package api
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/util"
+)
+
+const (
+	BuiltInDelete = "_DEL"
+)
+
+var (
+	builtin = map[string]func(*Context, *botapi.CallbackQuery){
+		BuiltInDelete: func(ctx *Context, q *botapi.CallbackQuery) {
+			u := botapi.NewDeleteMessage(ctx.Chat.ID, q.Message.MessageID)
+			SendConfig(ctx.Bot, &u)
+		},
+	}
 )
 
 type CallbackAction func(*Context, *botapi.CallbackQuery, *CallbackCmd)
@@ -25,6 +39,7 @@ type CallbackConfig struct {
 
 type CallbackAPI struct {
 	Title          string
+	Path           string
 	Actions        map[string]CallbackAction
 	DynamicActions func(*Context, *botapi.CallbackQuery, *CallbackCmd) map[string]CallbackAction
 	DynamicOptions func(*Context, *botapi.CallbackQuery, *CallbackCmd) []map[string]string
@@ -33,12 +48,12 @@ type CallbackAPI struct {
 	PublicOnly     bool
 	PrivateOptions []map[string]string
 	PrivateOnly    bool
-	Path           string
 }
 
 func NewCallbackAPI(title, path string, config *CallbackConfig) (api *CallbackAPI) {
 	api = &CallbackAPI{
 		Title:          title,
+		Path:           path,
 		Actions:        config.Actions,
 		DynamicActions: config.DynamicActions,
 		DynamicOptions: config.DynamicOptions,
@@ -47,7 +62,6 @@ func NewCallbackAPI(title, path string, config *CallbackConfig) (api *CallbackAP
 		PublicOnly:     config.PublicOnly,
 		PrivateOptions: config.PrivateOptions,
 		PrivateOnly:    config.PrivateOnly,
-		Path:           path,
 	}
 
 	if config.DynamicOptions == nil {
@@ -65,6 +79,17 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 
 	if action, exists := api.Actions[cc.Get()]; exists {
 		action(c, q, cc.Next())
+		return
+	}
+
+	if s, ok := cc.Tags["user"]; ok {
+		if userID, _ := strconv.ParseInt(s, 10, 64); userID != c.User.ID {
+			return
+		}
+	}
+
+	if cb, ok := builtin[q.Data]; ok {
+		go cb(c, q)
 		return
 	}
 
@@ -101,12 +126,12 @@ func (api *CallbackAPI) Expose(c *Context, q *botapi.CallbackQuery, cc *Callback
 
 	if q == nil {
 		msg := botapi.NewMessage(c.Chat.ID, api.Title)
-		msg.ReplyMarkup = *InlineKeyboard(*opts)
+		msg.ReplyMarkup = *InlineKeyboard(*opts, fmt.Sprintf("user=%d", c.User.ID))
 
 		_, err = c.Bot.Send(msg)
 	} else {
 		msg := botapi.NewEditMessageText(c.Chat.ID, q.Message.MessageID, api.Title)
-		msg.ReplyMarkup = InlineKeyboard(*opts)
+		msg.ReplyMarkup = InlineKeyboard(*opts, fmt.Sprintf("user=%d", c.User.ID))
 
 		err = SendUpdate(c.Bot, &msg)
 	}
@@ -149,11 +174,35 @@ func (api *CallbackAPI) resolveOpts(opts []map[string]string) (res []map[string]
 type CallbackCmd struct {
 	cmd  string
 	from int
+	Tags map[string]string
 }
 
+// NewCallbackCmd creates a new CallbackCmd, parsing the 'cmd' string for a prefix of
+// comma-separated tags. These can be individual values or key=value pairs.
+//
+//   - "action/to/something/" 					- No tags
+//   - "tag1,tag2 action/to/something/" 		- Value tags
+//   - "user=158,chat=20 action/to/something/" 	- Key-value tags
+//   - "user=158,tag2 action/to/something/" 	- Mixed tags
 func NewCallbackCmd(cmd string) *CallbackCmd {
+	tags := map[string]string{}
 	from := 0
-	return &CallbackCmd{cmd, from}
+
+	i := strings.Index(cmd, " ")
+	if i != -1 && i < len(cmd)-1 {
+		vals := cmd[:i]
+		cmd = cmd[i+1:]
+
+		for _, v := range strings.Split(vals, ",") {
+			if i = strings.Index(v, "="); i != -1 {
+				tags[v[:i]] = v[i+1:]
+			} else {
+				tags[v] = v
+			}
+		}
+	}
+
+	return &CallbackCmd{cmd, from, tags}
 }
 
 func (cc *CallbackCmd) Path() string {

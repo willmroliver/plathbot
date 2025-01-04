@@ -99,7 +99,7 @@ func (a *Admin) View(c *api.Context, query *botapi.CallbackQuery) {
 	text.WriteString("Currently tracked:\n\n")
 
 	for _, react := range tracked {
-		text.WriteString(fmt.Sprintf("%s - %s\n", react.Emoji, react.Title))
+		text.WriteString(react.Emoji + " - " + react.Title + "\n")
 	}
 
 	api.SendUpdate(c.Bot, a.NewMessageUpdate(text.String(), &[]map[string]string{
@@ -161,7 +161,7 @@ Okay, send the emoji you'd like to stop tracking.`)
 			return
 		}
 
-		api.SendConfig(s.Bot, a.NewMessage(fmt.Sprintf("%s removed", e), &[]map[string]string{
+		api.SendConfig(s.Bot, a.NewMessage(e+" removed", &[]map[string]string{
 			api.KeyboardNavRow(AdminPath),
 		}))
 	}, c.User.ID, time.Minute*5)
