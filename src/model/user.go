@@ -48,7 +48,7 @@ func (u *User) IsAdmin(bot *botapi.BotAPI, chatID int64) bool {
 		return false
 	}
 
-	return c.IsAdministrator()
+	return c.IsAdministrator() || c.IsCreator()
 }
 
 func (u *User) GetUsername() string {

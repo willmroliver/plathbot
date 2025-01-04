@@ -23,6 +23,10 @@ func NewReactRepo(db *gorm.DB) *ReactRepo {
 }
 
 func (r *ReactRepo) Save(emoji, title string) (err error) {
+	if reacts == nil {
+		r.All()
+	}
+
 	react := &model.React{Emoji: emoji, Title: title}
 	if err = r.Repo.Save(react); err == nil {
 		reactsMux.Lock()

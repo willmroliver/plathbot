@@ -2,6 +2,7 @@ package emoji
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,17 +31,21 @@ func AdminAPI() *api.CallbackAPI {
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
 				"view": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
-					if a := OpenAdmin(c.Server.DB, cq); a != nil {
+					if a := OpenAdmin(c, cq, cc); a != nil {
 						a.View(c, cq)
 					}
 				},
 				"update": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
-					if a := OpenAdmin(c.Server.DB, cq); a != nil {
+					if !c.GetUser().IsAdmin(c.Bot, c.Chat.ID) {
+						return
+					}
+
+					if a := OpenAdmin(c, cq, cc); a != nil {
 						a.Update(c, cq)
 					}
 				},
 				"remove": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
-					if a := OpenAdmin(c.Server.DB, cq); a != nil {
+					if a := OpenAdmin(c, cq, cc); a != nil {
 						a.Remove(c, cq)
 					}
 				},
@@ -69,7 +74,17 @@ func NewAdmin(db *gorm.DB, q *botapi.CallbackQuery) *Admin {
 	}
 }
 
-func OpenAdmin(db *gorm.DB, q *botapi.CallbackQuery) (admin *Admin) {
+func OpenAdmin(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (admin *Admin) {
+	if u, ok := cc.Tags["user"]; ok {
+		if id, _ := strconv.ParseInt(u, 10, 64); id != q.From.ID {
+			return
+		}
+	}
+
+	if !c.IsAdmin() {
+		return
+	}
+
 	open.Range(func(key any, value any) bool {
 		if value.(*api.Interaction[any]).Age() > time.Minute*5 {
 			open.Delete(key)
@@ -81,7 +96,7 @@ func OpenAdmin(db *gorm.DB, q *botapi.CallbackQuery) (admin *Admin) {
 	if data, exists := open.Load(q.From.ID); exists {
 		admin = data.(*Admin)
 	} else {
-		admin = NewAdmin(db, q)
+		admin = NewAdmin(c.Server.DB, q)
 	}
 
 	return
@@ -123,11 +138,7 @@ E.g: '💸 High-flyer'`)
 			return
 		}
 
-		e, t := m.Text[:i], m.Text[i+1:]
-		if e == "\u2665" {
-			e = "\u2764\ufe0f"
-		}
-
+		e, t := util.NormalizeEmoji(m.Text[:i]), m.Text[i+1:]
 		if a.service.ReactRepo.Save(e, t) != nil {
 			return
 		}
