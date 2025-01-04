@@ -7,6 +7,7 @@ import (
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
+	"github.com/willmroliver/plathbot/src/util"
 	"gorm.io/gorm"
 )
 
@@ -65,7 +66,12 @@ func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 	}
 
 	for _, react := range m.OldReaction {
-		if react == nil || react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
+		if react == nil {
+			continue
+		}
+
+		react.Emoji = util.NormalizeEmoji(react.Emoji)
+		if react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
 			continue
 		}
 
@@ -77,7 +83,12 @@ func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 	}
 
 	for _, react := range m.NewReaction {
-		if react == nil || react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
+		if react == nil {
+			continue
+		}
+
+		react.Emoji = util.NormalizeEmoji(react.Emoji)
+		if react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
 			continue
 		}
 

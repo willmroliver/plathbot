@@ -115,3 +115,11 @@ func (ctx *Context) HandleInlineQuery() {
 func (ctx *Context) GetUser() *model.User {
 	return ctx.UserRepo.Get(ctx.User)
 }
+
+func (ctx *Context) IsAdmin() bool {
+	if ctx.Chat == nil {
+		return false
+	}
+
+	return ctx.UserRepo.Get(ctx.User).IsAdmin(ctx.Bot, ctx.Chat.ID)
+}
