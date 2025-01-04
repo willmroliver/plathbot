@@ -8,7 +8,6 @@ import (
 	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
-	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -30,7 +29,7 @@ func TableAPI() *api.CallbackAPI {
 				{"⏳ All-Time": "all"},
 				{"📆 Monthly": "month"},
 				{"📰 This Week": "week"},
-				util.KeyboardNavRow(".."),
+				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
 		},
@@ -64,7 +63,7 @@ func sendTable(c *api.Context, title string, data []*model.ReactCount) {
 				"%s %d\t %s - %s\n",
 				count.Emoji,
 				count.Count,
-				util.AtString(count.User.FirstName, count.User.ID),
+				api.AtString(count.User.FirstName, count.User.ID),
 				react.Title,
 			))
 		}
@@ -74,9 +73,9 @@ func sendTable(c *api.Context, title string, data []*model.ReactCount) {
 		c.Chat.ID,
 		c.Message.MessageID,
 		text.String(),
-		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(TablePath)}),
+		*api.InlineKeyboard([]map[string]string{api.KeyboardNavRow(TablePath)}),
 	)
 	msg.ParseMode = "Markdown"
 
-	util.SendUpdate(c.Bot, &msg)
+	api.SendUpdate(c.Bot, &msg)
 }

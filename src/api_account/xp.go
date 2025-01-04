@@ -6,7 +6,6 @@ import (
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/service"
-	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -20,7 +19,7 @@ func XPQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.CallbackCmd) 
 		c.Message.MessageID,
 		fmt.Sprintf("📊 Current XP: %d", c.GetUser().UserXPMap[service.XPTitleEngage].XP),
 	)
-	msg.ReplyMarkup = util.InlineKeyboard([]map[string]string{util.KeyboardNavRow("..")})
+	msg.ReplyMarkup = api.InlineKeyboard([]map[string]string{api.KeyboardNavRow("..")})
 
-	util.SendUpdate(c.Bot, &msg)
+	api.SendUpdate(c.Bot, &msg)
 }

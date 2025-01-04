@@ -1,6 +1,8 @@
 package api
 
 import (
+	"strings"
+
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -11,7 +13,12 @@ type CommandAPI struct {
 }
 
 func (api *CommandAPI) Select(c *Context, msg *botapi.Message, cmd string) {
-	if action, exists := api.Actions[cmd]; exists {
+	i := strings.Index(cmd, " ")
+	if i == -1 {
+		i = len(cmd)
+	}
+
+	if action, exists := api.Actions[cmd[:i]]; exists {
 		action(c, msg)
 	}
 }

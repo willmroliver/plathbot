@@ -8,7 +8,6 @@ import (
 	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
-	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -32,7 +31,7 @@ func UserXPAPI(title string) *api.CallbackAPI {
 				{"⏳ All-Time": all},
 				{"📆 Monthly": month},
 				{"📰 This Week": week},
-				util.KeyboardNavRow(".."),
+				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
 		},
@@ -88,7 +87,7 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 		if i == 0 {
 			text.WriteString(fmt.Sprintf(
 				"👑 %s - %d\n",
-				util.AtString(xp.User.FirstName, xp.User.ID),
+				api.AtString(xp.User.FirstName, xp.User.ID),
 				get(xp),
 			))
 			continue
@@ -97,7 +96,7 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 		text.WriteString(fmt.Sprintf(
 			"%d. %s - %d\n",
 			i+1,
-			util.AtString(xp.User.FirstName, xp.User.ID),
+			api.AtString(xp.User.FirstName, xp.User.ID),
 			get(xp),
 		))
 	}
@@ -106,9 +105,9 @@ func sendTable(c *api.Context, title string, data []*model.UserXP, get func(*mod
 		c.Chat.ID,
 		c.Message.MessageID,
 		text.String(),
-		*util.InlineKeyboard([]map[string]string{util.KeyboardNavRow(fmt.Sprintf("%s/%s", XpPath, title))}),
+		*api.InlineKeyboard([]map[string]string{api.KeyboardNavRow(fmt.Sprintf("%s/%s", XpPath, title))}),
 	)
 	msg.ParseMode = "Markdown"
 
-	util.SendUpdate(c.Bot, &msg)
+	api.SendUpdate(c.Bot, &msg)
 }

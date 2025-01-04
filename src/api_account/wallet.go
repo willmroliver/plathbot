@@ -8,7 +8,6 @@ import (
 	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
-	"github.com/willmroliver/plathbot/src/util"
 	"gorm.io/gorm"
 )
 
@@ -44,7 +43,7 @@ func WalletAPI() *api.CallbackAPI {
 			PrivateOptions: []map[string]string{
 				{"✏️ Update": "update"},
 				{"👀 View": "view", "🗑️ Remove": "remove"},
-				util.KeyboardNavRow(".."),
+				api.KeyboardNavRow(".."),
 			},
 			PrivateOnly: true,
 		},
@@ -88,13 +87,13 @@ func (w *Wallet) User() *model.User {
 }
 
 func (w *Wallet) View(c *api.Context, query *botapi.CallbackQuery) {
-	util.SendBasic(c.Bot, query.Message.Chat.ID, w.User().PublicWallet)
+	api.SendBasic(c.Bot, query.Message.Chat.ID, w.User().PublicWallet)
 }
 
 func (w *Wallet) Update(c *api.Context, query *botapi.CallbackQuery) {
 	w.Mutate("update", query.Message)
 
-	util.SendConfig(c.Bot, w.NewMessage("Okay! Send me a public wallet address to associate to your account.", nil))
+	api.SendConfig(c.Bot, w.NewMessage("Okay! Send me a public wallet address to associate to your account.", nil))
 
 	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) {
 		w = data.(*Wallet)
@@ -104,10 +103,10 @@ func (w *Wallet) Update(c *api.Context, query *botapi.CallbackQuery) {
 		}
 
 		if err := w.repo.UpdateWallet(w.user, m.Text); err != nil {
-			util.SendConfig(s.Bot, w.NewMessage("Something went wrong updating your wallet details", nil))
+			api.SendConfig(s.Bot, w.NewMessage("Something went wrong updating your wallet details", nil))
 		}
 
-		util.SendConfig(s.Bot, w.NewMessage("✅ Saved", &[]map[string]string{{
+		api.SendConfig(s.Bot, w.NewMessage("✅ Saved", &[]map[string]string{{
 			Title: Path,
 		}}))
 	}, w, time.Minute*5)
@@ -117,9 +116,9 @@ func (w *Wallet) Update(c *api.Context, query *botapi.CallbackQuery) {
 
 func (w *Wallet) Remove(c *api.Context, query *botapi.CallbackQuery) {
 	if err := w.repo.UpdateWallet(w.user, ""); err != nil {
-		util.SendBasic(c.Bot, query.Message.Chat.ID, "Something went wrong deleting your wallet details.")
+		api.SendBasic(c.Bot, query.Message.Chat.ID, "Something went wrong deleting your wallet details.")
 		return
 	}
 
-	util.SendUpdate(c.Bot, w.NewMessageUpdate("✅ Deleted", &[]map[string]string{{Title: Path}}))
+	api.SendUpdate(c.Bot, w.NewMessageUpdate("✅ Deleted", &[]map[string]string{{Title: Path}}))
 }

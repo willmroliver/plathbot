@@ -5,7 +5,6 @@ import (
 	"github.com/willmroliver/plathbot/src/api"
 	emoji "github.com/willmroliver/plathbot/src/api_emoji"
 	"github.com/willmroliver/plathbot/src/repo"
-	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -40,14 +39,13 @@ func API() *api.CallbackAPI {
 					}
 
 					options[len(options)-2] = map[string]string{emoji.Title: "emojis"}
-					options[len(options)-1] = util.KeyboardNavRow("..")
+					options[len(options)-1] = api.KeyboardNavRow("..")
 
 					return
 				}
 
-				return []map[string]string{{emoji.Title: "emojis"}, util.KeyboardNavRow("..")}
+				return []map[string]string{{emoji.Title: "emojis"}, api.KeyboardNavRow("..")}
 			},
-			PublicOnly: true,
 		},
 	)
 }

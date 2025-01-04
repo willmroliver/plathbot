@@ -4,7 +4,6 @@ import (
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/willmroliver/plathbot/src/util"
 )
 
 type Interaction[T comparable] struct {
@@ -36,7 +35,7 @@ func (i *Interaction[T]) NewMessage(text string, markup *[]map[string]string) *b
 	msg.ParseMode = botapi.ModeMarkdown
 
 	if markup != nil {
-		msg.ReplyMarkup = util.InlineKeyboard(*markup)
+		msg.ReplyMarkup = InlineKeyboard(*markup)
 	}
 
 	return &msg
@@ -45,7 +44,7 @@ func (i *Interaction[T]) NewMessage(text string, markup *[]map[string]string) *b
 func (i *Interaction[T]) NewMessageUpdate(text string, markup *[]map[string]string) *botapi.EditMessageTextConfig {
 	var msg botapi.EditMessageTextConfig
 	if markup != nil {
-		msg = botapi.NewEditMessageTextAndMarkup(i.msg.Chat.ID, i.msg.MessageID, text, *util.InlineKeyboard(*markup))
+		msg = botapi.NewEditMessageTextAndMarkup(i.msg.Chat.ID, i.msg.MessageID, text, *InlineKeyboard(*markup))
 	} else {
 		msg = botapi.NewEditMessageText(i.msg.Chat.ID, i.msg.MessageID, text)
 	}

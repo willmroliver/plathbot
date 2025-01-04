@@ -63,19 +63,15 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 		api.Actions = api.DynamicActions(c, q, cc)
 	}
 
-	if api.DynamicOptions != nil {
-		api.PublicOptions = api.resolveOpts(api.DynamicOptions(c, q, cc))
-	}
-
 	if action, exists := api.Actions[cc.Get()]; exists {
 		action(c, q, cc.Next())
 		return
 	}
 
-	api.Expose(c, q)
+	api.Expose(c, q, cc)
 }
 
-func (api *CallbackAPI) Expose(c *Context, m *botapi.CallbackQuery) {
+func (api *CallbackAPI) Expose(c *Context, q *botapi.CallbackQuery, cc *CallbackCmd) {
 	private := c.Chat.Type == "private"
 
 	if !private && !util.TryLockFor(fmt.Sprintf("%d %s", c.Chat.ID, api.Title), api.PublicCooldown) {
@@ -85,31 +81,34 @@ func (api *CallbackAPI) Expose(c *Context, m *botapi.CallbackQuery) {
 	if api.PrivateOnly && !private {
 		msg := botapi.NewMessage(
 			c.Chat.ID,
-			fmt.Sprintf("DM to use %q - %s", api.Title, util.AtBotString(c.Bot)),
+			fmt.Sprintf("DM to use %q - %s", api.Title, AtBotString(c.Bot)),
 		)
 		msg.ParseMode = "Markdown"
-		util.SendConfig(c.Bot, &msg)
+		SendConfig(c.Bot, &msg)
 
 		return
 	}
 
 	opts := &api.PublicOptions
-	if private && !api.PublicOnly && api.DynamicOptions == nil {
+
+	if api.DynamicOptions != nil {
+		api.PublicOptions = api.resolveOpts(api.DynamicOptions(c, q, cc))
+	} else if private && !api.PublicOnly {
 		opts = &api.PrivateOptions
 	}
 
 	var err error
 
-	if m == nil {
+	if q == nil {
 		msg := botapi.NewMessage(c.Chat.ID, api.Title)
-		msg.ReplyMarkup = *util.InlineKeyboard(*opts)
+		msg.ReplyMarkup = *InlineKeyboard(*opts)
 
 		_, err = c.Bot.Send(msg)
 	} else {
-		msg := botapi.NewEditMessageText(c.Chat.ID, m.Message.MessageID, api.Title)
-		msg.ReplyMarkup = util.InlineKeyboard(*opts)
+		msg := botapi.NewEditMessageText(c.Chat.ID, q.Message.MessageID, api.Title)
+		msg.ReplyMarkup = InlineKeyboard(*opts)
 
-		err = util.SendUpdate(c.Bot, &msg)
+		err = SendUpdate(c.Bot, &msg)
 	}
 
 	if err != nil {
@@ -122,7 +121,7 @@ func (api *CallbackAPI) resolveOpts(opts []map[string]string) (res []map[string]
 
 	for i, row := range opts {
 		for k, v := range row {
-			if strings.HasPrefix(v, "_") {
+			if strings.HasPrefix(v, "_") || strings.HasPrefix(v, "!!") {
 				continue
 			}
 
@@ -136,7 +135,11 @@ func (api *CallbackAPI) resolveOpts(opts []map[string]string) (res []map[string]
 				continue
 			}
 
-			res[i][k] = strings.Join([]string{api.Path, v}, "/")
+			if api.Path == "" {
+				res[i][k] = v
+			} else {
+				res[i][k] = strings.Join([]string{api.Path, v}, "/")
+			}
 		}
 	}
 

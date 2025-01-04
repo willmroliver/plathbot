@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -37,29 +38,29 @@ var (
 
 	commandAPI = &api.CommandAPI{
 		Actions: map[string]api.CommandAction{
-			"/start": sendHelp,
+			"/start": sendStart,
 			"/help":  sendHelp,
 			"/fact":  sendFact,
 			"/hub": func(c *api.Context, m *botapi.Message) {
-				callbackAPI.Expose(c, nil)
+				callbackAPI.Expose(c, nil, nil)
 			},
 			"/account": func(c *api.Context, m *botapi.Message) {
-				accountAPI.Expose(c, nil)
+				accountAPI.Expose(c, nil, nil)
 			},
 			"/games": func(c *api.Context, m *botapi.Message) {
-				gamesAPI.Expose(c, nil)
+				gamesAPI.Expose(c, nil, nil)
 			},
 			"/emojis": func(c *api.Context, m *botapi.Message) {
-				emojiAPI.Expose(c, nil)
+				emojiAPI.Expose(c, nil, nil)
 			},
 			"/adopt": func(c *api.Context, m *botapi.Message) {
 				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
-					util.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
+					api.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
 				}
 			},
 			"/donate": func(c *api.Context, m *botapi.Message) {
 				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
-					util.SendBasic(c.Bot, c.Chat.ID, DonateLink)
+					api.SendBasic(c.Bot, c.Chat.ID, DonateLink)
 				}
 			},
 		},
@@ -73,13 +74,27 @@ var (
 			emojiAPI.Path:   emojiAPI.Select,
 			statsAPI.Path:   statsAPI.Select,
 		},
-		PublicOptions: []map[string]string{
-			{accountAPI.Title: accountAPI.Path},
-			{gamesAPI.Title: gamesAPI.Path},
-			{emojiAPI.Title: emojiAPI.Path},
-			{statsAPI.Title: statsAPI.Path},
+		DynamicOptions: func(ctx *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) (opts []map[string]string) {
+			apis := []*api.CallbackAPI{
+				accountAPI,
+				gamesAPI,
+				emojiAPI,
+				statsAPI,
+			}
+
+			opts = make([]map[string]string, len(apis))
+			public := ctx.Chat.Type != "private"
+
+			for i, a := range apis {
+				if a.PrivateOnly && public {
+					opts[i] = map[string]string{a.Title: api.KeyboardLink(api.ToPrivateString(ctx.Bot, a.Path))}
+				} else {
+					opts[i] = map[string]string{a.Title: a.Path}
+				}
+			}
+
+			return
 		},
-		PublicOnly: true,
 	}
 )
 
@@ -98,6 +113,18 @@ func NewServer() *api.Server {
 	return s
 }
 
+func sendStart(c *api.Context, m *botapi.Message) {
+	log.Printf("Args: %q", m.Text)
+
+	args := strings.Split(m.Text, " ")
+	if len(args) < 2 {
+		sendHelp(c, m)
+		return
+	}
+
+	c.Server.CommandAPI.Actions["/"+args[1]](c, m)
+}
+
 func sendHelp(c *api.Context, m *botapi.Message) {
 	public := fmt.Sprintf(`
 	Welcome to the P1athHub - Next stop, the moon 🚀🌖
@@ -113,7 +140,7 @@ func sendHelp(c *api.Context, m *botapi.Message) {
 	🐾 /donate 💸
 	🐾 /account 💻
 	🐾 /games 🎮
-	`, util.AtBotString(c.Bot))
+	`, api.AtBotString(c.Bot))
 
 	private := `
 	Hey, it's P1ath 🚀🌖
@@ -177,11 +204,11 @@ func getFact() string {
 }
 
 func requestAdopt(c *api.Context, query *botapi.InlineQuery) {
-	util.RequestBasic(c.Bot, query, "Adopt a Platypus", AdoptLink)
+	api.RequestBasic(c.Bot, query, "Adopt a Platypus", AdoptLink)
 }
 
 func requestDonate(c *api.Context, query *botapi.InlineQuery) {
-	util.RequestBasic(c.Bot, query, "Donate to WWF", DonateLink)
+	api.RequestBasic(c.Bot, query, "Donate to WWF", DonateLink)
 }
 
 func requestFact(c *api.Context, query *botapi.InlineQuery) {
