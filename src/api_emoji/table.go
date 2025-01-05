@@ -73,7 +73,10 @@ func sendTable(c *api.Context, title string, data []*model.ReactCount) {
 		c.Chat.ID,
 		c.Message.MessageID,
 		text.String(),
-		*api.InlineKeyboard([]map[string]string{api.KeyboardNavRow(TablePath)}),
+		*api.InlineKeyboard(
+			[]map[string]string{api.KeyboardNavRow(TablePath)},
+			fmt.Sprintf("user=%d", c.User.ID),
+		),
 	)
 	msg.ParseMode = "Markdown"
 
