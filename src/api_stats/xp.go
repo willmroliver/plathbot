@@ -16,7 +16,7 @@ const (
 )
 
 func UserXPAPI(title string) *api.CallbackAPI {
-	all, month, week := "all", "week", "month"
+	all, month, week := "all", "month", "week"
 
 	return api.NewCallbackAPI(
 		title,

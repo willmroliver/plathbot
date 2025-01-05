@@ -105,8 +105,6 @@ func NewServer() *api.Server {
 }
 
 func sendStart(c *api.Context, m *botapi.Message) {
-	log.Printf("Args: %q", m.Text)
-
 	args := strings.Split(m.Text, " ")
 	if len(args) < 2 {
 		sendHelp(c, m)
@@ -122,15 +120,18 @@ func sendHelp(c *api.Context, m *botapi.Message) {
 
 	Wanna talk? %s
 	
-	Public commands: try em!
-	
-	🐾 /hub 🚀🌖
-	🐾 /help 😣
-	🐾 /fact 🧠
-	🐾 /adopt 🐼
-	🐾 /donate 💸
-	🐾 /account 💻
-	🐾 /games 🎮
+	🐾 /hub 🚀   	- We all prefer buttons
+	🐾 /help 😣		- You've made it this far
+	🐾 /fact 🧠		- Just for fun :)
+	🐾 /adopt 🐼 	- Adopt a platypus
+	🐾 /donate 💸	- Support a good cause
+	🐾 /account 💻	- Manage your account
+	🐾 /games 🎮	- Let's goooo
+	🐾 /emojis 🙂	- React leaderboards <3
+	🐾 /stats 📊	- Top the charts for airdrops!
+
+	For more info, pass 'help' or '?' to any of these commands:
+		"/games help"
 	`, api.AtBotString(c.Bot))
 
 	private := `
@@ -145,6 +146,11 @@ func sendHelp(c *api.Context, m *botapi.Message) {
 	🐾 /donate 💸	- Support a good cause
 	🐾 /account 💻	- Manage your account
 	🐾 /games 🎮	- Let's goooo
+	🐾 /emojis 🙂	- React leaderboards <3
+	🐾 /stats 📊	- Top the charts for airdrops!
+
+	For more info, pass 'help' or '?' to any of these commands:
+		"/games help"
 	`
 
 	text := public

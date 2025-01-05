@@ -64,7 +64,13 @@ func (ctx *Context) HandleMessage() {
 		text = text[:i]
 	}
 
-	cc := NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(m.Text, " ", "/")[1:] + "/")
+	var cc *CallbackCmd
+
+	if strings.HasPrefix(text, "/start ") {
+		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(text[len("/start "):], " ", "/") + "/")
+	} else {
+		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(text, " ", "/")[1:] + "/")
+	}
 
 	if action, ok := ctx.Server.CallbackAPI.Actions[cc.Get()]; ok {
 		msg, err := SendBasic(ctx.Bot, ctx.Chat.ID, "🚀")

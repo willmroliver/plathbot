@@ -73,12 +73,8 @@ func NewCallbackAPI(title, path string, config *CallbackConfig) (api *CallbackAP
 }
 
 func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *CallbackCmd) {
-	if api.DynamicActions != nil {
-		api.Actions = api.DynamicActions(c, q, cc)
-	}
-
-	if action, exists := api.Actions[cc.Get()]; exists {
-		action(c, q, cc.Next())
+	if api.PrivateOnly && c.Chat.Type != "private" {
+		api.privateRedirect(c, q)
 		return
 	}
 
@@ -86,6 +82,38 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 		if userID, _ := strconv.ParseInt(s, 10, 64); userID != c.User.ID {
 			return
 		}
+	}
+
+	if api.DynamicActions != nil {
+		api.Actions = api.DynamicActions(c, q, cc)
+	}
+
+	var cmd string
+
+	if cmd = cc.Get(); cmd == "" {
+		api.Expose(c, q, cc)
+		return
+	}
+
+	if action, ok := api.Actions[cmd]; ok {
+		action(c, q, cc.Next())
+		return
+	}
+
+	if _, ok := cc.Tags["cmd"]; ok {
+		test := strings.ToLower(cmd)
+
+		for key, action := range api.Actions {
+			if strings.Contains(strings.ToLower(key), test) {
+				action(c, q, cc.Next())
+				return
+			}
+		}
+	}
+
+	if cmd == "help" || cmd == "?" {
+		api.sendHelp(c, q)
+		return
 	}
 
 	if cb, ok := builtin[cc.Path()]; ok {
@@ -100,25 +128,6 @@ func (api *CallbackAPI) Expose(c *Context, q *botapi.CallbackQuery, cc *Callback
 	private := c.Chat.Type == "private"
 
 	if !private && !util.TryLockFor(fmt.Sprintf("%d %s", c.Chat.ID, api.Title), api.PublicCooldown) {
-		return
-	}
-
-	if api.PrivateOnly && !private {
-		msg := &botapi.MessageConfig{
-			BaseChat: botapi.BaseChat{ChatID: c.Chat.ID},
-		}
-
-		msg.ReplyMarkup = *InlineKeyboard([]map[string]string{{
-			fmt.Sprintf(
-				"DM to use %q - %s",
-				api.Title,
-				AtBotString(c.Bot),
-			): KeyboardLink(ToPrivateString(c.Bot, api.Path)),
-		}})
-
-		msg.ParseMode = "Markdown"
-		SendConfig(c.Bot, msg)
-
 		return
 	}
 
@@ -146,6 +155,74 @@ func (api *CallbackAPI) Expose(c *Context, q *botapi.CallbackQuery, cc *Callback
 
 	if err != nil {
 		log.Printf("Error sending %q menu: %q", api.Title, err.Error())
+	}
+}
+
+func (api *CallbackAPI) sendHelp(c *Context, q *botapi.CallbackQuery) {
+	path := "/" + strings.ReplaceAll(api.Path, "/", " ")
+
+	text := &strings.Builder{}
+	text.WriteString(fmt.Sprintf(
+		"<pre>\n%q - %s\nCommands available:\n\n",
+		path,
+		api.Title,
+	))
+
+	for key := range api.Actions {
+		text.WriteString("\t\t" + key + "\n")
+	}
+
+	if api.DynamicOptions != nil {
+		text.WriteString(fmt.Sprintf(`
+These commands are dynamic and may not respect the single-word format.
+So, partial matches are supported!
+
+I.e. if the command text is 
+	"🚀 Space stuff"
+You could use 
+	"%s space"
+		`, path))
+	}
+
+	if q == nil {
+		msg := &botapi.MessageConfig{
+			BaseChat: botapi.BaseChat{ChatID: c.Chat.ID},
+		}
+		msg.ParseMode = "HTML"
+		msg.Text = text.String() + "</pre>"
+		SendConfig(c.Bot, msg)
+	} else {
+		msg := botapi.NewEditMessageText(c.Chat.ID, q.Message.MessageID, api.Title)
+		msg.ParseMode = "HTML"
+		msg.Text = text.String() + "</pre>"
+		SendUpdate(c.Bot, &msg)
+	}
+}
+
+func (api *CallbackAPI) privateRedirect(c *Context, q *botapi.CallbackQuery) {
+	dest := api.Path
+	if i := strings.Index(api.Path, "/"); i != -1 {
+		dest = dest[:i]
+	}
+
+	text := "🤫 Shhh.. You're in public"
+	mu := *InlineKeyboard([]map[string]string{{
+		api.Title: KeyboardLink(ToPrivateString(c.Bot, dest)),
+	}})
+
+	if q == nil {
+		msg := &botapi.MessageConfig{
+			BaseChat: botapi.BaseChat{ChatID: c.Chat.ID},
+		}
+		msg.ParseMode = "Markdown"
+		msg.Text = text
+		msg.ReplyMarkup = mu
+		SendConfig(c.Bot, msg)
+	} else {
+		msg := botapi.NewEditMessageTextAndMarkup(c.Chat.ID, q.Message.MessageID, api.Title, mu)
+		msg.ParseMode = "Markdown"
+		msg.Text = text
+		SendUpdate(c.Bot, &msg)
 	}
 }
 
