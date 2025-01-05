@@ -36,10 +36,6 @@ func AdminAPI() *api.CallbackAPI {
 					}
 				},
 				"update": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
-					if !c.GetUser().IsAdmin(c.Bot, c.Chat.ID) {
-						return
-					}
-
 					if a := OpenAdmin(c, cq, cc); a != nil {
 						a.Update(c, cq)
 					}
@@ -117,9 +113,9 @@ func (a *Admin) View(c *api.Context, query *botapi.CallbackQuery) {
 		text.WriteString(react.Emoji + " - " + react.Title + "\n")
 	}
 
-	api.SendUpdate(c.Bot, a.NewMessageUpdate(text.String(), &[]map[string]string{
+	api.SendUpdate(c.Bot, a.NewMessageUpdate(text.String(), api.InlineKeyboard([]map[string]string{
 		api.KeyboardNavRow(AdminPath),
-	}))
+	}, fmt.Sprintf("user=%d", a.user.ID))))
 }
 
 func (a *Admin) Update(c *api.Context, query *botapi.CallbackQuery) {
@@ -127,9 +123,11 @@ func (a *Admin) Update(c *api.Context, query *botapi.CallbackQuery) {
 Okay, send the emoji you'd like to update and give it a title, space-separated.
 E.g: '💸 High-flyer'`)
 
-	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) {
-		a := data.(*Admin)
-		if m.From.ID != a.user.ID {
+	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) (done bool) {
+		done = true
+
+		ad := data.(*Admin)
+		if m.From.ID != ad.user.ID {
 			return
 		}
 
@@ -139,13 +137,17 @@ E.g: '💸 High-flyer'`)
 		}
 
 		e, t := util.NormalizeEmoji(m.Text[:i]), m.Text[i+1:]
-		if a.service.ReactRepo.Save(e, t) != nil {
+		if ad.service.ReactRepo.Save(e, t) != nil {
 			return
 		}
 
-		api.SendConfig(s.Bot, a.NewMessage(fmt.Sprintf("%s saved as %q", e, t), &[]map[string]string{
+		mu := api.InlineKeyboard([]map[string]string{
 			api.KeyboardNavRow(AdminPath),
-		}))
+		}, fmt.Sprintf("user=%d", ad.user.ID))
+
+		api.SendConfig(s.Bot, ad.NewMessage(fmt.Sprintf("%s saved as %q", e, t), mu))
+
+		return
 	}, a, time.Minute*5)
 
 	c.Server.RegisterMessageHook(c.Chat.ID, hook)
@@ -155,10 +157,12 @@ func (a *Admin) Remove(c *api.Context, query *botapi.CallbackQuery) {
 	api.SendBasic(c.Bot, c.Chat.ID, `
 Okay, send the emoji you'd like to stop tracking.`)
 
-	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) {
+	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) (done bool) {
 		if m.From.ID != userID.(int64) {
 			return
 		}
+
+		done = true
 
 		e := m.Text
 
@@ -172,9 +176,13 @@ Okay, send the emoji you'd like to stop tracking.`)
 			return
 		}
 
-		api.SendConfig(s.Bot, a.NewMessage(e+" removed", &[]map[string]string{
+		mu := api.InlineKeyboard([]map[string]string{
 			api.KeyboardNavRow(AdminPath),
-		}))
+		}, fmt.Sprintf("user=%d", userID))
+
+		api.SendConfig(s.Bot, a.NewMessage(e+" removed", mu))
+
+		return
 	}, c.User.ID, time.Minute*5)
 
 	c.Server.RegisterMessageHook(c.Chat.ID, hook)

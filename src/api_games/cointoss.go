@@ -121,7 +121,7 @@ func (ct *CoinToss) RequestToss(query *botapi.CallbackQuery) (err error) {
 
 	msg := ct.NewMessageUpdate(
 		api.AtUserString(ct.players[0])+" wants to toss a coin...",
-		&[]map[string]string{{"Play!": ct.getCmd("accept")}},
+		api.InlineKeyboard([]map[string]string{{"Play!": ct.getCmd("accept")}}),
 	)
 
 	if _, err = ct.bot.Send(msg); err != nil {
@@ -140,10 +140,13 @@ func (ct *CoinToss) AcceptToss(query *botapi.CallbackQuery) (err error) {
 
 	ct.players[1] = query.From
 
-	msg := ct.NewMessageUpdate(api.AtUserString(ct.GetChosen())+", heads or tails?", &[]map[string]string{{
-		"🙉 Heads": ct.getCmd("heads"),
-		"🐒 Tails": ct.getCmd("tails"),
-	}})
+	msg := ct.NewMessageUpdate(
+		api.AtUserString(ct.GetChosen())+", heads or tails?",
+		api.InlineKeyboard([]map[string]string{{
+			"🙉 Heads": ct.getCmd("heads"),
+			"🐒 Tails": ct.getCmd("tails"),
+		}}),
+	)
 
 	if _, err = ct.bot.Send(msg); err != nil {
 		log.Printf("Error in AcceptToss(): %q", err.Error())

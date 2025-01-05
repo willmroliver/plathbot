@@ -1,6 +1,7 @@
 package account
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -95,20 +96,24 @@ func (w *Wallet) Update(c *api.Context, query *botapi.CallbackQuery) {
 
 	api.SendConfig(c.Bot, w.NewMessage("Okay! Send me a public wallet address to associate to your account.", nil))
 
-	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) {
-		w = data.(*Wallet)
+	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) (done bool) {
+		done = true
+		wa := data.(*Wallet)
 
 		if !w.Is("update") {
 			return
 		}
 
-		if err := w.repo.UpdateWallet(w.user, m.Text); err != nil {
-			api.SendConfig(s.Bot, w.NewMessage("Something went wrong updating your wallet details", nil))
+		if err := wa.repo.UpdateWallet(wa.user, m.Text); err != nil {
+			api.SendConfig(s.Bot, wa.NewMessage("Something went wrong updating your wallet details", nil))
 		}
 
-		api.SendConfig(s.Bot, w.NewMessage("✅ Saved", &[]map[string]string{{
-			Title: Path,
-		}}))
+		api.SendConfig(s.Bot, wa.NewMessage(
+			"✅ Saved",
+			api.InlineKeyboard([]map[string]string{{Title: Path}}, fmt.Sprintf("user=%d", w.user.ID)),
+		))
+
+		return
 	}, w, time.Minute*5)
 
 	c.Server.RegisterMessageHook(query.Message.Chat.ID, hook)
@@ -120,5 +125,8 @@ func (w *Wallet) Remove(c *api.Context, query *botapi.CallbackQuery) {
 		return
 	}
 
-	api.SendUpdate(c.Bot, w.NewMessageUpdate("✅ Deleted", &[]map[string]string{{Title: Path}}))
+	api.SendUpdate(c.Bot, w.NewMessageUpdate(
+		"✅ Deleted",
+		api.InlineKeyboard([]map[string]string{{Title: Path}}, fmt.Sprintf("user=%d", w.user.ID)),
+	))
 }

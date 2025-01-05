@@ -1,7 +1,6 @@
 package api
 
 import (
-	"log"
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -100,8 +99,6 @@ func (ctx *Context) HandleCallbackQuery() {
 		return
 	}
 
-	log.Printf("Q: %q", m.Data)
-
 	ctx.User = m.From
 	ctx.Chat = m.Message.Chat
 	ctx.Message = m.Message
@@ -124,5 +121,6 @@ func (ctx *Context) IsAdmin() bool {
 		return false
 	}
 
-	return ctx.UserRepo.Get(ctx.User).IsAdmin(ctx.Bot, ctx.Chat.ID)
+	return ctx.Chat.Type == "private" ||
+		ctx.UserRepo.Get(ctx.User).IsAdmin(ctx.Bot, ctx.Chat.ID)
 }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type Interaction[T comparable] struct {
@@ -30,21 +31,26 @@ func (i *Interaction[T]) Age() time.Duration {
 	return time.Since(i.time)
 }
 
-func (i *Interaction[T]) NewMessage(text string, markup *[]map[string]string) *botapi.MessageConfig {
+func (i *Interaction[T]) NewMessage(text string, markup *tgbotapi.InlineKeyboardMarkup) *botapi.MessageConfig {
 	msg := botapi.NewMessage(i.msg.Chat.ID, text)
 	msg.ParseMode = botapi.ModeMarkdown
 
 	if markup != nil {
-		msg.ReplyMarkup = InlineKeyboard(*markup)
+		msg.ReplyMarkup = *markup
 	}
 
 	return &msg
 }
 
-func (i *Interaction[T]) NewMessageUpdate(text string, markup *[]map[string]string) *botapi.EditMessageTextConfig {
+func (i *Interaction[T]) NewMessageUpdate(text string, markup *tgbotapi.InlineKeyboardMarkup) *botapi.EditMessageTextConfig {
 	var msg botapi.EditMessageTextConfig
 	if markup != nil {
-		msg = botapi.NewEditMessageTextAndMarkup(i.msg.Chat.ID, i.msg.MessageID, text, *InlineKeyboard(*markup))
+		msg = botapi.NewEditMessageTextAndMarkup(
+			i.msg.Chat.ID,
+			i.msg.MessageID,
+			text,
+			*markup,
+		)
 	} else {
 		msg = botapi.NewEditMessageText(i.msg.Chat.ID, i.msg.MessageID, text)
 	}
