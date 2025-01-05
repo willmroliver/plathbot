@@ -16,7 +16,7 @@ const (
 func SendBasic(bot *botapi.BotAPI, chatID int64, msg string) (*botapi.Message, error) {
 	m, err := bot.Send(botapi.NewMessage(chatID, msg))
 	if err != nil {
-		log.Printf("Got error: %q, attempting to send %q:", err.Error(), msg)
+		log.Printf("SendBasic error: %q, attempting to send %q:", err.Error(), msg)
 	}
 
 	return &m, err
@@ -25,7 +25,7 @@ func SendBasic(bot *botapi.BotAPI, chatID int64, msg string) (*botapi.Message, e
 func SendConfig(bot *botapi.BotAPI, msg botapi.Chattable) (*botapi.Message, error) {
 	m, err := bot.Send(msg)
 	if err != nil {
-		log.Printf("Got error: %q, attempting to send %+v:", err.Error(), msg)
+		log.Printf("SendConfig error: %q, attempting to send %+v:", err.Error(), msg)
 	}
 
 	return &m, err
@@ -33,7 +33,7 @@ func SendConfig(bot *botapi.BotAPI, msg botapi.Chattable) (*botapi.Message, erro
 
 func SendUpdate(bot *botapi.BotAPI, msg *botapi.EditMessageTextConfig) (err error) {
 	if _, err = bot.Send(*msg); err != nil {
-		log.Printf("Got error: %q, attempting to send %q", err.Error(), msg.Text)
+		log.Printf("SendUpdate error: %q, attempting to send %q", err.Error(), msg.Text)
 	}
 
 	return
