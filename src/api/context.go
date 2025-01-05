@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -63,7 +64,7 @@ func (ctx *Context) HandleMessage() {
 		text = text[:i]
 	}
 
-	cc := NewCallbackCmd("cmd|" + strings.ReplaceAll(m.Text, " ", "/")[1:] + "/")
+	cc := NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(m.Text, " ", "/")[1:] + "/")
 
 	if action, ok := ctx.Server.CallbackAPI.Actions[cc.Get()]; ok {
 		msg, err := SendBasic(ctx.Bot, ctx.Chat.ID, "🚀")
