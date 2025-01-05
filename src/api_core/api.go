@@ -44,15 +44,6 @@ var (
 			"/hub": func(c *api.Context, m *botapi.Message) {
 				callbackAPI.Expose(c, nil, nil)
 			},
-			"/account": func(c *api.Context, m *botapi.Message) {
-				accountAPI.Expose(c, nil, nil)
-			},
-			"/games": func(c *api.Context, m *botapi.Message) {
-				gamesAPI.Expose(c, nil, nil)
-			},
-			"/emojis": func(c *api.Context, m *botapi.Message) {
-				emojiAPI.Expose(c, nil, nil)
-			},
 			"/adopt": func(c *api.Context, m *botapi.Message) {
 				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
 					api.SendBasic(c.Bot, c.Chat.ID, AdoptLink)

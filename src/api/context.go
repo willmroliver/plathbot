@@ -63,6 +63,23 @@ func (ctx *Context) HandleMessage() {
 		text = text[:i]
 	}
 
+	cc := NewCallbackCmd("cmd|" + strings.ReplaceAll(m.Text, " ", "/")[1:] + "/")
+
+	if action, ok := ctx.Server.CallbackAPI.Actions[cc.Get()]; ok {
+		msg, err := SendBasic(ctx.Bot, ctx.Chat.ID, "🚀")
+
+		if err == nil {
+			ctx.Message = msg
+			q := &botapi.CallbackQuery{
+				From:    m.From,
+				Message: msg,
+			}
+
+			action(ctx, q, cc.Next())
+			return
+		}
+	}
+
 	ctx.Server.CommandAPI.Select(ctx, m, text)
 }
 

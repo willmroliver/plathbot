@@ -13,21 +13,22 @@ const (
 	keyboardSwitchCode = "!!s"
 )
 
-func SendBasic(bot *botapi.BotAPI, chatID int64, msg string) (err error) {
-	_, err = bot.Send(botapi.NewMessage(chatID, msg))
+func SendBasic(bot *botapi.BotAPI, chatID int64, msg string) (*botapi.Message, error) {
+	m, err := bot.Send(botapi.NewMessage(chatID, msg))
 	if err != nil {
 		log.Printf("Got error: %q, attempting to send %q:", err.Error(), msg)
 	}
 
-	return
+	return &m, err
 }
 
-func SendConfig(bot *botapi.BotAPI, msg botapi.Chattable) (err error) {
-	if _, err = bot.Send(msg); err != nil {
+func SendConfig(bot *botapi.BotAPI, msg botapi.Chattable) (*botapi.Message, error) {
+	m, err := bot.Send(msg)
+	if err != nil {
 		log.Printf("Got error: %q, attempting to send %+v:", err.Error(), msg)
 	}
 
-	return
+	return &m, err
 }
 
 func SendUpdate(bot *botapi.BotAPI, msg *botapi.EditMessageTextConfig) (err error) {
