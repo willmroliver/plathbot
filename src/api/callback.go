@@ -80,8 +80,6 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 	if action, exists := api.Actions[cc.Get()]; exists {
 		action(c, q, cc.Next())
 		return
-	} else {
-		log.Printf("Not found: %q, %+v", cc.Get(), api.Actions)
 	}
 
 	if s, ok := cc.Tags["user"]; ok {
@@ -106,12 +104,20 @@ func (api *CallbackAPI) Expose(c *Context, q *botapi.CallbackQuery, cc *Callback
 	}
 
 	if api.PrivateOnly && !private {
-		msg := botapi.NewMessage(
-			c.Chat.ID,
-			fmt.Sprintf("DM to use %q - %s", api.Title, AtBotString(c.Bot)),
-		)
+		msg := &botapi.MessageConfig{
+			BaseChat: botapi.BaseChat{ChatID: c.Chat.ID},
+		}
+
+		msg.ReplyMarkup = *InlineKeyboard([]map[string]string{{
+			fmt.Sprintf(
+				"DM to use %q - %s",
+				api.Title,
+				AtBotString(c.Bot),
+			): KeyboardLink(ToPrivateString(c.Bot, api.Path)),
+		}})
+
 		msg.ParseMode = "Markdown"
-		SendConfig(c.Bot, &msg)
+		SendConfig(c.Bot, msg)
 
 		return
 	}
