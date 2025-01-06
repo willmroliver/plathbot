@@ -14,6 +14,7 @@ func Migrate(db *gorm.DB) (err error) {
 		&model.UserXP{},
 		&model.ReactCount{},
 		&model.React{},
+		&model.File{},
 	}
 
 	for _, table := range tables {

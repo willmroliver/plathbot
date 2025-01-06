@@ -20,7 +20,7 @@ type UserXPRepo struct {
 
 func NewUserXPRepo(db *gorm.DB) *UserXPRepo {
 	return &UserXPRepo{
-		Repo: NewRepo(db),
+		NewRepo(db),
 	}
 }
 
@@ -96,15 +96,17 @@ func (r *UserXPRepo) Titles() (titles []string) {
 func (r *UserXPRepo) List(title, order string, offset, lim int) (xps []*model.UserXP) {
 	xps = make([]*model.UserXP, 0)
 
+	query := r.db.Offset(offset).Limit(lim)
+
 	if order != "" {
-		r.db.Order(order)
+		query.Order(order)
 	}
 
 	if title != "" {
-		r.db.Where("title = ?", title)
+		query.Where("title = ?", title)
 	}
 
-	r.db.Offset(offset).Limit(lim).Find(&xps)
+	query.Find(&xps)
 	return
 }
 
