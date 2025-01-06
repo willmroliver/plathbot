@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -12,6 +11,7 @@ import (
 	account "github.com/willmroliver/plathbot/src/api_account"
 	emoji "github.com/willmroliver/plathbot/src/api_emoji"
 	games "github.com/willmroliver/plathbot/src/api_games"
+	pfp "github.com/willmroliver/plathbot/src/api_pfp"
 	stats "github.com/willmroliver/plathbot/src/api_stats"
 	"github.com/willmroliver/plathbot/src/db"
 	"github.com/willmroliver/plathbot/src/util"
@@ -41,15 +41,16 @@ var (
 			"/start": sendStart,
 			"/help":  sendHelp,
 			"/fact":  sendFact,
-			"/hub": func(c *api.Context, m *botapi.Message) {
+			"/pfp":   pfp.API,
+			"/hub": func(c *api.Context, m *botapi.Message, args ...string) {
 				callbackAPI.Expose(c, nil, nil)
 			},
-			"/adopt": func(c *api.Context, m *botapi.Message) {
+			"/adopt": func(c *api.Context, m *botapi.Message, args ...string) {
 				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
 					api.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
 				}
 			},
-			"/donate": func(c *api.Context, m *botapi.Message) {
+			"/donate": func(c *api.Context, m *botapi.Message, args ...string) {
 				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
 					api.SendBasic(c.Bot, c.Chat.ID, DonateLink)
 				}
@@ -104,8 +105,7 @@ func NewServer() *api.Server {
 	return s
 }
 
-func sendStart(c *api.Context, m *botapi.Message) {
-	args := strings.Split(m.Text, " ")
+func sendStart(c *api.Context, m *botapi.Message, args ...string) {
 	if len(args) < 2 {
 		sendHelp(c, m)
 		return
@@ -114,21 +114,21 @@ func sendStart(c *api.Context, m *botapi.Message) {
 	c.Server.CommandAPI.Actions["/"+args[1]](c, m)
 }
 
-func sendHelp(c *api.Context, m *botapi.Message) {
+func sendHelp(c *api.Context, m *botapi.Message, args ...string) {
 	public := fmt.Sprintf(`
 	Welcome to the P1athHub - Next stop, the moon 🚀🌖
 
 	Wanna talk? %s
 	
-	🐾 /hub 🚀   	- We all prefer buttons
-	🐾 /help 😣		- You've made it this far
-	🐾 /fact 🧠		- Just for fun :)
-	🐾 /adopt 🐼 	- Adopt a platypus
-	🐾 /donate 💸	- Support a good cause
-	🐾 /account 💻	- Manage your account
-	🐾 /games 🎮	- Let's goooo
-	🐾 /emojis 🙂	- React leaderboards <3
-	🐾 /stats 📊	- Top the charts for airdrops!
+	🐾 /hub 🚀   	
+	🐾 /help 😣		
+	🐾 /fact 🧠		
+	🐾 /adopt 🐼 	
+	🐾 /donate 💸	
+	🐾 /account 💻	
+	🐾 /games 🎮	
+	🐾 /emojis 🙂	
+	🐾 /stats 📊	
 
 	For more info, pass 'help' or '?' to any of these commands:
 		"/games help"
@@ -165,7 +165,7 @@ func sendHelp(c *api.Context, m *botapi.Message) {
 	c.Bot.Send(msg)
 }
 
-func sendFact(c *api.Context, m *botapi.Message) {
+func sendFact(c *api.Context, m *botapi.Message, args ...string) {
 	if c.Chat.Type != "private" && !util.TryLockFor(fmt.Sprintf("%d fact", c.Chat.ID), time.Second*5) {
 		return
 	}

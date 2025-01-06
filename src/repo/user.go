@@ -22,7 +22,7 @@ type UserRepo struct {
 
 func NewUserRepo(db *gorm.DB) *UserRepo {
 	return &UserRepo{
-		Repo: NewRepo(db),
+		NewRepo(db),
 	}
 }
 

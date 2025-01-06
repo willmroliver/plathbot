@@ -54,15 +54,17 @@ func (r *ReactCountRepo) ShiftCount(react *model.ReactCount, count int) (err err
 func (r *ReactCountRepo) List(emoji, order string, offset, lim int) (counts []*model.ReactCount) {
 	counts = make([]*model.ReactCount, 0)
 
+	query := r.db.Offset(offset).Limit(lim)
+
 	if order != "" {
-		r.db.Order(order)
+		query.Order(order)
 	}
 
 	if emoji != "" {
-		r.db.Where("emoji = ?", emoji)
+		query.Where("emoji = ?", emoji)
 	}
 
-	r.db.Offset(offset).Limit(lim).Find(&counts)
+	query.Find(&counts)
 	return
 }
 

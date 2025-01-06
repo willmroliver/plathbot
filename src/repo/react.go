@@ -18,7 +18,7 @@ type ReactRepo struct {
 
 func NewReactRepo(db *gorm.DB) *ReactRepo {
 	return &ReactRepo{
-		Repo: NewRepo(db),
+		NewRepo(db),
 	}
 }
 

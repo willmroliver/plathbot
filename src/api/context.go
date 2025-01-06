@@ -58,11 +58,7 @@ func (ctx *Context) HandleMessage() {
 		return
 	}
 
-	if i := strings.LastIndex(text, "@"); i != -1 && text[i+1:] != ctx.Bot.Self.UserName {
-		return
-	} else if i != -1 {
-		text = text[:i]
-	}
+	text = strings.Replace(text, "@"+ctx.Bot.Self.UserName, "", 1)
 
 	var cc *CallbackCmd
 
@@ -87,7 +83,7 @@ func (ctx *Context) HandleMessage() {
 		}
 	}
 
-	ctx.Server.CommandAPI.Select(ctx, m, text)
+	ctx.Server.CommandAPI.Select(ctx, m, strings.Split(text, " ")...)
 }
 
 func (ctx *Context) HandleMessageReaction() {

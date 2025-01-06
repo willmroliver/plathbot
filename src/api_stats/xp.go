@@ -45,7 +45,7 @@ func (t XPTitle) getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.Callbac
 	t.sendTable(
 		c,
 		"⏳ All-Time",
-		r.TopXPs(string(t), "xp DESC", 0, 5),
+		r.TopXPs(string(t), "xp DESC", 0, 15),
 		func(xp *model.UserXP) int64 {
 			return xp.XP
 		},
@@ -56,7 +56,7 @@ func (t XPTitle) getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.Cal
 	r := repo.NewUserXPRepo(c.Server.DB)
 	t.sendTable(
 		c, "📆 Monthly",
-		r.TopXPs(string(t), "month_xp DESC", 0, 5),
+		r.TopXPs(string(t), "month_xp DESC", 0, 15),
 		func(xp *model.UserXP) int64 {
 			return xp.MonthXP
 		},
@@ -68,7 +68,7 @@ func (t XPTitle) getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.Call
 	t.sendTable(
 		c,
 		"📰 Weekly",
-		r.TopXPs(string(t), "week_xp DESC", 0, 5),
+		r.TopXPs(string(t), "week_xp DESC", 0, 15),
 		func(xp *model.UserXP) int64 {
 			return xp.WeekXP
 		},
@@ -107,7 +107,7 @@ func (t XPTitle) sendTable(c *api.Context, title string, data []*model.UserXP, g
 		text.String(),
 		*api.InlineKeyboard([]map[string]string{
 			api.KeyboardNavRow(XpPath + "/" + string(t)),
-		}),
+		}, fmt.Sprintf("user=%d", c.User.ID)),
 	)
 	msg.ParseMode = "Markdown"
 
