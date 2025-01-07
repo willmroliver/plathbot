@@ -276,7 +276,7 @@ func (g *RockPaperScissors) getCmd(cmd string) string {
 func (g *RockPaperScissors) playerPrefix() string {
 	return api.AtString("(P1) "+api.DisplayName(g.Players[0]), g.Players[0].ID) +
 		" vs " +
-		api.AtString(api.DisplayName(g.Players[0])+" (P2)", g.Players[0].ID)
+		api.AtString(api.DisplayName(g.Players[1])+" (P2)", g.Players[1].ID)
 }
 
 func (g *RockPaperScissors) menuBuilder() *strings.Builder {
