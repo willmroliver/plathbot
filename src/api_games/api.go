@@ -17,11 +17,13 @@ func API() *api.CallbackAPI {
 		Path,
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
-				"cointoss": CointossQuery,
+				"cointoss":          CointossQuery,
+				"rockpaperscissors": RockPaperScissorsQuery,
 			},
 			PublicCooldown: time.Second * 3,
 			PublicOptions: []map[string]string{
 				{CointossTitle: "cointoss"},
+				{RockPaperScissorsTitle: "rockpaperscissors"},
 				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
