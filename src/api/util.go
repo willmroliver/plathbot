@@ -130,12 +130,34 @@ func AtString(text string, id int64) string {
 	return fmt.Sprintf("[%s](tg://user?id=%d)", text, id)
 }
 
+func DisplayName(user *botapi.User) (text string) {
+	if user.FirstName != "" {
+		text = user.FirstName
+	} else if user.UserName != "" {
+		text = user.UserName
+	} else {
+		text = fmt.Sprintf("%d", user.ID)
+	}
+
+	return
+}
+
 func AtUserString(user *botapi.User) string {
 	if user == nil {
 		return ""
 	}
 
-	return fmt.Sprintf("[%s](tg://user?id=%d)", user.FirstName, user.ID)
+	var text string
+
+	if user.FirstName != "" {
+		text = user.FirstName
+	} else if user.UserName != "" {
+		text = user.UserName
+	} else {
+		text = fmt.Sprintf("user-%d", user.ID)
+	}
+
+	return fmt.Sprintf("[%s](tg://user?id=%d)", text, user.ID)
 }
 
 func AtBotString(bot *botapi.BotAPI) string {
