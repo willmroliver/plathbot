@@ -10,6 +10,7 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
+	"github.com/willmroliver/plathbot/src/service"
 )
 
 type Move string
@@ -83,14 +84,14 @@ func RockPaperScissorsQuery(c *api.Context, query *botapi.CallbackQuery, cmd *ap
 
 	switch action {
 	case "accept":
-		if game.AcceptGame(query) != nil {
+		if game.AcceptGame(c, query) != nil {
 			rpsRunning.Delete(game.ID)
 		}
 	case string(MoveRock), string(MovePaper), string(MoveScissors):
 		if i, err := strconv.Atoi(cmd.Next().Get()); err == nil {
 			if done, err := game.DoMove(Move(action), i, query); err == nil && done {
 				time.Sleep(time.Millisecond * 500)
-				game.SendRound(query)
+				game.SendRound(c, query)
 			}
 		}
 	default:
@@ -128,7 +129,7 @@ func (g *RockPaperScissors) RequestGame(q *botapi.CallbackQuery) (err error) {
 	return
 }
 
-func (g *RockPaperScissors) AcceptGame(q *botapi.CallbackQuery) (err error) {
+func (g *RockPaperScissors) AcceptGame(c *api.Context, q *botapi.CallbackQuery) (err error) {
 	if !g.Is("request") || (q.Message.Chat.Type != "private" && q.From.ID == g.ID) {
 		log.Println("AcceptGame failed")
 		return
@@ -137,7 +138,7 @@ func (g *RockPaperScissors) AcceptGame(q *botapi.CallbackQuery) (err error) {
 	g.Mutate("play", q.Message)
 	g.Players[1] = q.From
 
-	if err := g.SendRound(q); err != nil {
+	if err := g.SendRound(c, q); err != nil {
 		g.Mutate("request", q.Message)
 		g.Players[1] = nil
 	}
@@ -145,13 +146,13 @@ func (g *RockPaperScissors) AcceptGame(q *botapi.CallbackQuery) (err error) {
 	return
 }
 
-func (g *RockPaperScissors) SendRound(q *botapi.CallbackQuery) (err error) {
+func (g *RockPaperScissors) SendRound(c *api.Context, q *botapi.CallbackQuery) (err error) {
 	if !g.Is("play") {
 		return
 	}
 
 	if g.Round++; g.Round > g.TotalRounds {
-		if err = g.SendWinner(q); err == nil {
+		if err = g.SendWinner(c, q); err == nil {
 			rpsRunning.Delete(g.ID)
 		}
 
@@ -226,7 +227,7 @@ func (g *RockPaperScissors) DoMove(move Move, i int, q *botapi.CallbackQuery) (d
 	return
 }
 
-func (g *RockPaperScissors) SendWinner(q *botapi.CallbackQuery) (err error) {
+func (g *RockPaperScissors) SendWinner(c *api.Context, q *botapi.CallbackQuery) (err error) {
 	p1, p2 := 0, 0
 
 	for _, move := range g.Moves {
@@ -240,11 +241,17 @@ func (g *RockPaperScissors) SendWinner(q *botapi.CallbackQuery) (err error) {
 	text := g.menuBuilder()
 	text.WriteString("\n" + fmt.Sprintf("%s %d - %d %s\n", api.AtUserString(g.Players[0]), p1, p2, api.AtUserString(g.Players[1])))
 
+	s := service.NewUserXPService(c.Server.DB)
+
 	winner := "Draw 🥴"
 	if p1 > p2 {
-		winner = fmt.Sprintf("%s wins! +%d XP", api.AtUserString(g.Players[0]), 100*(p1-p2))
+		xp := 100 * int64(p1-p2)
+		winner = fmt.Sprintf("%s wins! +%d XP", api.AtUserString(g.Players[0]), xp)
+		s.UpdateXPs(g.Players[1], service.XPTitleGames, xp)
 	} else if p1 < p2 {
-		winner = fmt.Sprintf("%s wins! +%d XP", api.AtUserString(g.Players[1]), 100*(p2-p1))
+		xp := 100 * int64(p2-p1)
+		winner = fmt.Sprintf("%s wins! +%d XP", api.AtUserString(g.Players[1]), xp)
+		s.UpdateXPs(g.Players[1], service.XPTitleGames, xp)
 	}
 
 	text.WriteString(winner)

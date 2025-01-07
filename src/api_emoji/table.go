@@ -63,7 +63,7 @@ func sendTable(c *api.Context, title string, data []*model.ReactCount) {
 				"%s %d\t %s - %s\n",
 				count.Emoji,
 				count.Count,
-				api.AtUserString(count.User.TelegramUser),
+				count.User.AtString(),
 				react.Title,
 			))
 		}

@@ -87,7 +87,7 @@ func (t XPTitle) sendTable(c *api.Context, title string, data []*model.UserXP, g
 		if i == 0 {
 			text.WriteString(fmt.Sprintf(
 				"👑 %s - %d\n",
-				api.AtUserString(xp.User.TelegramUser),
+				xp.User.AtString(),
 				get(xp),
 			))
 			continue
@@ -96,7 +96,7 @@ func (t XPTitle) sendTable(c *api.Context, title string, data []*model.UserXP, g
 		text.WriteString(fmt.Sprintf(
 			"%d. %s - %d\n",
 			i+1,
-			api.AtUserString(xp.User.TelegramUser),
+			xp.User.AtString(),
 			get(xp),
 		))
 	}

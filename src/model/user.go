@@ -62,3 +62,19 @@ func (u *User) GetUsername() string {
 
 	return fmt.Sprintf("%s_%d", u.TelegramUser.FirstName, u.ID)
 }
+
+func (u *User) DisplayName() (text string) {
+	if u.FirstName != "" {
+		text = u.FirstName
+	} else if u.Username != "" {
+		text = u.Username
+	} else {
+		text = fmt.Sprintf("%d", u.ID)
+	}
+
+	return
+}
+
+func (u *User) AtString() string {
+	return fmt.Sprintf("[%s](tg://user?id=%d)", u.DisplayName(), u.ID)
+}
