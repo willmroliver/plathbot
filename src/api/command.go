@@ -11,7 +11,12 @@ type CommandAPI struct {
 }
 
 func (api *CommandAPI) Select(c *Context, msg *botapi.Message, args ...string) {
-	if action, exists := api.Actions[args[0]]; exists {
+	action, ok := api.Actions[args[0]]
+	if !ok {
+		action, ok = api.Actions["/p"+args[0][1:]]
+	}
+
+	if ok {
 		action(c, msg, args[1:]...)
 	}
 }
