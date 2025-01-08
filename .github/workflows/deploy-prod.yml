@@ -1,0 +1,49 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up SSH key for GitHub
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Transfer GitHub SSH private key to VM
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY_GITHUB }}" > github_key
+        chmod 600 github_key
+        scp -o StrictHostKeyChecking=no github_key ubuntu@152.67.150.238:~/.ssh/github_key
+        ssh -o StrictHostKeyChecking=no ubuntu@152.67.150.238 'chmod 600 ~/.ssh/github_key'
+    - name: Deploy code to Oracle Cloud
+      run: |
+        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ubuntu@152.67.150.238 << 'EOF'
+          echo -e "Host github.com\n  IdentityFile ~/.ssh/github_key\n  User git\n" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+          cd /app
+          git pull origin main
+
+          HASH_FILE="/app/data/src_hash.txt"
+          NEW_HASH=$(find "./src" -type f -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
+
+          if [ -f "$HASH_FILE" ]; then
+            OLD_HASH=$(cat "$HASH_FILE")
+            if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+              docker compose up --build -d
+            fi
+          else
+            docker compose up --build -d
+          fi
+
+          echo "$NEW_HASH" > "$HASH_FILE"
+        EOF

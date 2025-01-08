@@ -3,7 +3,7 @@ name: Deploy to Oracle Cloud
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to main branch
+      - dev
 
 jobs:
   deploy:

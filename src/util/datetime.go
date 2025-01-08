@@ -16,5 +16,5 @@ func FirstOfMonth(from *time.Time) time.Time {
 	diff := int(from.Day() - 1)
 
 	date := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location())
-	return date.AddDate(0, 0, diff)
+	return date.AddDate(0, 0, -diff)
 }
