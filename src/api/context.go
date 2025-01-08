@@ -68,7 +68,12 @@ func (ctx *Context) HandleMessage() {
 		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(text, " ", "/")[1:] + "/")
 	}
 
-	if action, ok := ctx.Server.CallbackAPI.Actions[cc.Get()]; ok {
+	action, ok := ctx.Server.CallbackAPI.Actions[cc.Get()]
+	if !ok {
+		action, ok = ctx.Server.CallbackAPI.Actions["p"+cc.Get()]
+	}
+
+	if ok {
 		msg, err := SendBasic(ctx.Bot, ctx.Chat.ID, "🚀")
 
 		if err == nil {
