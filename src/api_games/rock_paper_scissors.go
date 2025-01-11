@@ -161,22 +161,10 @@ func (g *RockPaperScissors) SendRound(c *api.Context, q *botapi.CallbackQuery) (
 
 	p1, p2 := api.DisplayName(g.Players[0]), api.DisplayName(g.Players[1])
 
-	mu := botapi.NewInlineKeyboardMarkup(
-		[]botapi.InlineKeyboardButton{
-			botapi.NewInlineKeyboardButtonData(p1+" "+string(MoveRock), g.getCmd(string(MoveRock))+"/0"),
-			botapi.NewInlineKeyboardButtonData(string(MoveRock)+" "+p2, g.getCmd(string(MoveRock))+"/1"),
-		},
-		[]botapi.InlineKeyboardButton{
-			botapi.NewInlineKeyboardButtonData(p1+" "+string(MovePaper), g.getCmd(string(MovePaper))+"/0"),
-			botapi.NewInlineKeyboardButtonData(string(MovePaper)+" "+p2, g.getCmd(string(MovePaper))+"/1"),
-		},
-		[]botapi.InlineKeyboardButton{
-			botapi.NewInlineKeyboardButtonData(p1+" "+string(MoveScissors), g.getCmd(string(MoveScissors))+"/0"),
-			botapi.NewInlineKeyboardButtonData(string(MoveScissors)+" "+p2, g.getCmd(string(MoveScissors))+"/1"),
-		},
+	m := g.NewMessageUpdate(
+		g.menuBuilder().String(),
+		g.movesKeyboard(p1, p2),
 	)
-
-	m := g.NewMessageUpdate(g.menuBuilder().String(), &mu)
 
 	if err = api.SendUpdate(g.Bot, m); err != nil {
 		g.Round--
@@ -201,22 +189,11 @@ func (g *RockPaperScissors) DoMove(move Move, i int, q *botapi.CallbackQuery) (d
 			p2 = "✅"
 		}
 
-		mu := botapi.NewInlineKeyboardMarkup(
-			[]botapi.InlineKeyboardButton{
-				botapi.NewInlineKeyboardButtonData(p1+" "+string(MoveRock), g.getCmd(string(MoveRock))+"/0"),
-				botapi.NewInlineKeyboardButtonData(string(MoveRock)+" "+p2, g.getCmd(string(MoveRock))+"/1"),
-			},
-			[]botapi.InlineKeyboardButton{
-				botapi.NewInlineKeyboardButtonData(p1+" "+string(MovePaper), g.getCmd(string(MovePaper))+"/0"),
-				botapi.NewInlineKeyboardButtonData(string(MovePaper)+" "+p2, g.getCmd(string(MovePaper))+"/1"),
-			},
-			[]botapi.InlineKeyboardButton{
-				botapi.NewInlineKeyboardButtonData(p1+" "+string(MoveScissors), g.getCmd(string(MoveScissors))+"/0"),
-				botapi.NewInlineKeyboardButtonData(string(MoveScissors)+" "+p2, g.getCmd(string(MoveScissors))+"/1"),
-			},
+		m := g.NewMessageUpdate(
+			g.menuBuilder().String(),
+			g.movesKeyboard(p1, p2),
 		)
 
-		m := g.NewMessageUpdate(g.menuBuilder().String(), &mu)
 		if err = api.SendUpdate(g.Bot, m); err == nil {
 			g.Moves[j][i] = move
 		}
@@ -302,4 +279,23 @@ func (g *RockPaperScissors) menuBuilder() *strings.Builder {
 	}
 
 	return text
+}
+
+func (g *RockPaperScissors) movesKeyboard(p1, p2 string) *botapi.InlineKeyboardMarkup {
+	mu := botapi.NewInlineKeyboardMarkup(
+		[]botapi.InlineKeyboardButton{
+			botapi.NewInlineKeyboardButtonData(p1+" "+string(MoveRock), g.getCmd(string(MoveRock))+"/0"),
+			botapi.NewInlineKeyboardButtonData(string(MoveRock)+" "+p2, g.getCmd(string(MoveRock))+"/1"),
+		},
+		[]botapi.InlineKeyboardButton{
+			botapi.NewInlineKeyboardButtonData(p1+" "+string(MovePaper), g.getCmd(string(MovePaper))+"/0"),
+			botapi.NewInlineKeyboardButtonData(string(MovePaper)+" "+p2, g.getCmd(string(MovePaper))+"/1"),
+		},
+		[]botapi.InlineKeyboardButton{
+			botapi.NewInlineKeyboardButtonData(p1+" "+string(MoveScissors), g.getCmd(string(MoveScissors))+"/0"),
+			botapi.NewInlineKeyboardButtonData(string(MoveScissors)+" "+p2, g.getCmd(string(MoveScissors))+"/1"),
+		},
+	)
+
+	return &mu
 }
