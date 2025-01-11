@@ -3,3 +3,4 @@ vendor
 *.db
 *.env
 .ssh
+data
