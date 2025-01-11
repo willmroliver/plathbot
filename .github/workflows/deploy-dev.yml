@@ -33,6 +33,7 @@ jobs:
 
           cd /app
           git switch -c dev || git checkout dev
+          git pull origin dev
 
           HASH_FILE="/app/data/src_hash.txt"
           NEW_HASH=$(find "./src" -type f -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
