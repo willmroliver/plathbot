@@ -12,8 +12,8 @@ type CommandAPI struct {
 
 func (api *CommandAPI) Select(c *Context, msg *botapi.Message, args ...string) {
 	action, ok := api.Actions[args[0]]
-	if !ok {
-		action, ok = api.Actions["/p"+args[0][1:]]
+	if !ok && len(args[0]) > 2 && args[0][1] == 'p' {
+		action, ok = api.Actions["/"+args[0][2:]]
 	}
 
 	if ok {

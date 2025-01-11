@@ -68,9 +68,11 @@ func (ctx *Context) HandleMessage() {
 		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(text, " ", "/")[1:] + "/")
 	}
 
-	action, ok := ctx.Server.CallbackAPI.Actions[cc.Get()]
-	if !ok {
-		action, ok = ctx.Server.CallbackAPI.Actions["p"+cc.Get()]
+	cmd := cc.Get()
+
+	action, ok := ctx.Server.CallbackAPI.Actions[cmd]
+	if !ok && cmd[0] == 'p' {
+		action, ok = ctx.Server.CallbackAPI.Actions[cmd[1:]]
 	}
 
 	if ok {

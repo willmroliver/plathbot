@@ -31,8 +31,8 @@ var cointossRunning = sync.Map{}
 
 func CointossQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.CallbackCmd) {
 	cointossRunning.Range(func(key any, value any) bool {
-		game := value.(*CoinToss)
-		if game.Age() > time.Minute*5 {
+
+		if game := value.(*CoinToss); game.Age() > time.Minute*5 {
 			cointossRunning.Delete(key)
 		}
 
