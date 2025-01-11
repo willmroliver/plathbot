@@ -32,7 +32,7 @@ jobs:
           chmod 600 ~/.ssh/config
 
           cd /app
-          git checkout dev && git pull origin dev
+          git switch -c dev || git checkout dev
 
           HASH_FILE="/app/data/src_hash.txt"
           NEW_HASH=$(find "./src" -type f -exec sha256sum {} + | sort | sha256sum | awk '{print $1}')
