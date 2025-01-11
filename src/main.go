@@ -12,6 +12,5 @@ const (
 
 func main() {
 	godotenv.Load()
-	s := core.NewServer()
-	s.Listen()
+	core.NewServer().Listen()
 }

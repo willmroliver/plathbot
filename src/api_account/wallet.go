@@ -17,7 +17,7 @@ const (
 	WalletPath  = Path + "/wallet"
 )
 
-var open = sync.Map{}
+var walletsOpen = sync.Map{}
 
 func WalletAPI() *api.CallbackAPI {
 	return api.NewCallbackAPI(
@@ -66,15 +66,15 @@ func NewWallet(db *gorm.DB, query *botapi.CallbackQuery) *Wallet {
 }
 
 func OpenWallet(db *gorm.DB, query *botapi.CallbackQuery) (wallet *Wallet) {
-	open.Range(func(key any, value any) bool {
+	walletsOpen.Range(func(key any, value any) bool {
 		if value.(*api.Interaction[any]).Age() > time.Minute*5 {
-			open.Delete(key)
+			walletsOpen.Delete(key)
 		}
 
 		return true
 	})
 
-	if data, exists := open.Load(query.From.ID); exists {
+	if data, exists := walletsOpen.Load(query.From.ID); exists {
 		wallet = data.(*Wallet)
 	} else {
 		wallet = NewWallet(db, query)
