@@ -49,15 +49,14 @@ func allPosts(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
 		return
 	}
 
-	text := "‼‼‼ **Raid Links** ‼‼‼\nTop shillers will be rewarded 🤑"
+	text := "‼‼‼ *Raid Links* ‼‼‼\nTop shillers _will be rewarded_ 🤑"
 	kb := make([]map[string]string, len(posts))
 
 	for i, p := range posts {
 		kb[i] = map[string]string{p.Title: api.KeyboardLink(p.URL)}
 	}
 
-	m := botapi.NewMessage(c.Chat.ID, text)
-	m.ReplyMarkup = api.InlineKeyboard(kb)
+	m := botapi.NewEditMessageTextAndMarkup(c.Chat.ID, c.Message.MessageID, text, *api.InlineKeyboard(kb))
 	m.ParseMode = botapi.ModeMarkdown
 
 	api.SendConfig(c.Bot, m)
