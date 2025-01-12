@@ -42,10 +42,6 @@ func add(c *api.Context, m *botapi.Message, args ...string) {
 	var photo *botapi.PhotoSize
 
 	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, a any) (done bool) {
-		if a.(int64) != m.From.ID {
-			return
-		}
-
 		title = m.Text
 
 		if len(m.Photo) != 0 {
@@ -69,7 +65,7 @@ func add(c *api.Context, m *botapi.Message, args ...string) {
 		return
 	}, c.User.ID, time.Minute*5)
 
-	c.Server.RegisterMessageHook(c.Chat.ID, hook)
+	c.Server.RegisterUserHook(c.User.ID, hook)
 }
 
 func list(c *api.Context, m *botapi.Message, args ...string)   {}

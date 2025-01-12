@@ -12,6 +12,7 @@ import (
 	emoji "github.com/willmroliver/plathbot/src/api_emoji"
 	games "github.com/willmroliver/plathbot/src/api_games"
 	pfp "github.com/willmroliver/plathbot/src/api_pfp"
+	reddit "github.com/willmroliver/plathbot/src/api_reddit"
 	stats "github.com/willmroliver/plathbot/src/api_stats"
 	"github.com/willmroliver/plathbot/src/db"
 	"github.com/willmroliver/plathbot/src/util"
@@ -24,6 +25,7 @@ const (
 
 var (
 	accountAPI = account.API()
+	redditAPI  = reddit.API()
 	gamesAPI   = games.API()
 	emojiAPI   = emoji.API()
 	statsAPI   = stats.API()
@@ -62,6 +64,7 @@ var (
 		Title: "🚀🌖 P1ath Hub",
 		Actions: map[string]api.CallbackAction{
 			accountAPI.Path: accountAPI.Select,
+			redditAPI.Path:  redditAPI.Select,
 			gamesAPI.Path:   gamesAPI.Select,
 			emojiAPI.Path:   emojiAPI.Select,
 			statsAPI.Path:   statsAPI.Select,
@@ -69,6 +72,7 @@ var (
 		DynamicOptions: func(ctx *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) (opts []map[string]string) {
 			apis := []*api.CallbackAPI{
 				accountAPI,
+				redditAPI,
 				gamesAPI,
 				emojiAPI,
 				statsAPI,

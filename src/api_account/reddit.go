@@ -136,9 +136,13 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 
 		// Send the verification token & post
 		api.SendConfig(s.Bot, re.NewMessage(token, nil))
-		api.SendConfig(s.Bot, re.NewMessage(
-			"Please follow the link and "+
-				"comment the verification code above, using the account you are trying to link.",
+		api.SendConfig(s.Bot, re.NewMessage(`
+🔗 Account Link Request
+
+1️⃣ Hit the "Verify" button below
+2️⃣ Comment the verification token on the post
+3️⃣ Come back to this chat to see confirmation
+		`,
 			api.InlineKeyboard([]map[string]string{{"Verify": api.KeyboardLink(post.URL)}}),
 		))
 
@@ -147,7 +151,7 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 			Username, Token string
 		}
 
-		comments := reddit.PollComments(post.ID, time.Second*5, time.Minute*5, func(c *goreddit.PostAndComments, payload any) bool {
+		comments := reddit.PollComments(post.ID, time.Second*4, time.Minute*5, func(c *goreddit.PostAndComments, payload any) bool {
 			for _, comment := range c.Comments {
 				if comment.Body == token && comment.Author == payload.(*Payload).Username {
 					c.Comments = []*goreddit.Comment{comment}
@@ -176,10 +180,13 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 			api.SendConfig(s.Bot, re.NewMessage("Verification failed. Please try again.", nil))
 		}
 
+		// Either way, delete the post
+		reddit.DeletePost(post.FullID)
+
 		return
 	}, r, time.Minute*5)
 
-	c.Server.RegisterMessageHook(query.Message.Chat.ID, hook)
+	c.Server.RegisterChatHook(query.Message.Chat.ID, hook)
 }
 
 func (r *Reddit) Remove(c *api.Context, query *botapi.CallbackQuery) {

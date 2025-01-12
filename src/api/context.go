@@ -130,7 +130,7 @@ func (ctx *Context) HandleCallbackQuery() {
 	ctx.Chat = m.Message.Chat
 	ctx.Message = m.Message
 
-	go ctx.Server.CallbackAPI.Select(ctx, m, NewCallbackCmd(m.Data))
+	ctx.Server.CallbackAPI.Select(ctx, m, NewCallbackCmd(m.Data))
 }
 
 func (ctx *Context) HandleInlineQuery() {

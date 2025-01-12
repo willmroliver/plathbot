@@ -116,7 +116,7 @@ func (w *Wallet) Update(c *api.Context, query *botapi.CallbackQuery) {
 		return
 	}, w, time.Minute*5)
 
-	c.Server.RegisterMessageHook(query.Message.Chat.ID, hook)
+	c.Server.RegisterChatHook(query.Message.Chat.ID, hook)
 }
 
 func (w *Wallet) Remove(c *api.Context, query *botapi.CallbackQuery) {

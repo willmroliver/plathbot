@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/willmroliver/plathbot/src/api"
-	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
 	"github.com/willmroliver/plathbot/src/service"
 	"github.com/willmroliver/plathbot/src/util"
@@ -98,10 +97,6 @@ func OpenAdmin(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (ad
 	return
 }
 
-func (a *Admin) User() *model.User {
-	return a.service.UserRepo.Get(a.user)
-}
-
 func (a *Admin) View(c *api.Context, query *botapi.CallbackQuery) {
 	reactRepo := repo.NewReactRepo(c.Server.DB)
 	tracked := reactRepo.All()
@@ -127,9 +122,6 @@ E.g: '💸 High-flyer'`)
 		done = true
 
 		ad := data.(*Admin)
-		if m.From.ID != ad.user.ID {
-			return
-		}
 
 		i := strings.Index(m.Text, " ")
 		if i == -1 || !util.IsEmoji(m.Text[:i]) || i+1 == len(m.Text) {
@@ -150,7 +142,7 @@ E.g: '💸 High-flyer'`)
 		return
 	}, a, time.Minute*5)
 
-	c.Server.RegisterMessageHook(c.Chat.ID, hook)
+	c.Server.RegisterUserHook(c.User.ID, hook)
 }
 
 func (a *Admin) Remove(c *api.Context, query *botapi.CallbackQuery) {
@@ -158,10 +150,6 @@ func (a *Admin) Remove(c *api.Context, query *botapi.CallbackQuery) {
 Okay, send the emoji you'd like to stop tracking.`)
 
 	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, userID any) (done bool) {
-		if m.From.ID != userID.(int64) {
-			return
-		}
-
 		done = true
 
 		e := m.Text
@@ -185,5 +173,5 @@ Okay, send the emoji you'd like to stop tracking.`)
 		return
 	}, c.User.ID, time.Minute*5)
 
-	c.Server.RegisterMessageHook(c.Chat.ID, hook)
+	c.Server.RegisterUserHook(c.User.ID, hook)
 }
