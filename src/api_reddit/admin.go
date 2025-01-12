@@ -47,7 +47,8 @@ func AdminAPI() *api.CallbackAPI {
 			},
 			PublicOptions: []map[string]string{
 				{"✏️ Add Post": add},
-				{"👀 View Active": view, "🗑️ Remove": remove},
+				{"👀 View Active": view},
+				{"🔚 Stop Tracking": remove},
 				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
