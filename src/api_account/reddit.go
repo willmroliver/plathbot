@@ -116,8 +116,13 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 
 		// Create a new link post
 		post := reddit.PostBasic(
-			"Account Link Request",
-			"Please comment your verification token to complete your account link.",
+			"🔗 Account Link Request",
+			`
+Please comment your verification token on this post to complete your account link.
+
+[Disclaimer] This post is part of a Telegram-Reddit verification system.
+It will be hidden & locked after verification, and deleted at a later time.
+			`,
 		)
 
 		if post == nil {
@@ -180,8 +185,9 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 			api.SendConfig(s.Bot, re.NewMessage("Verification failed. Please try again.", nil))
 		}
 
-		// Either way, delete the post
-		reddit.DeletePost(post.FullID)
+		// Either way, lock & hide the post
+		reddit.LockPost(post.FullID)
+		reddit.HidePost(post.FullID)
 
 		return
 	}, r, time.Minute*5)

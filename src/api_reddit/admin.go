@@ -140,7 +140,7 @@ Okay, send the post ID you'd like to start tracking. ID can be found in the URL,
 
 		r := model.NewRedditPost(post)
 
-		api.SendUpdate(c.Bot, a.NewMessageUpdate(`
+		api.SendUpdate(c.Bot, ad.NewMessageUpdate(`
 How long do you want to track this post for? E.g:
 
 '24h'

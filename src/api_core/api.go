@@ -106,6 +106,8 @@ func NewServer() *api.Server {
 	s.CommandAPI = commandAPI
 	s.InlineAPI = inlineAPI
 
+	reddit.TrackPosts(s.DB, time.Minute*10)
+
 	return s
 }
 
