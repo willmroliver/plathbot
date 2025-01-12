@@ -5,7 +5,6 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
-	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
 )
 
@@ -41,11 +40,8 @@ func API() *api.CallbackAPI {
 }
 
 func allPosts(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
-	r, posts := repo.NewRepo(c.Server.DB), []*model.RedditPost{}
-
-	c.Server.DB.Where("expires_at < ?", time.Now()).Delete(&model.RedditPost{})
-
-	if err := r.All(&posts); err != nil || len(posts) == 0 {
+	posts := repo.NewRedditPostRepo(c.Server.DB).All()
+	if len(posts) == 0 {
 		return
 	}
 

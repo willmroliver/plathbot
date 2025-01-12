@@ -29,7 +29,7 @@ func Client() *reddit.Client {
 
 func PostBasic(title, text string) *reddit.Submitted {
 	post, _, err := Client().Post.SubmitText(newContext(), reddit.SubmitTextRequest{
-		Subreddit: "p1ath_bot",
+		Subreddit: "p1ath_bot_messages",
 		Title:     title,
 		Text:      text,
 	})
@@ -58,6 +58,22 @@ func DeletePost(fullID string) {
 
 	if err != nil {
 		log.Printf("DeletePost() - %q", err.Error())
+	}
+}
+
+func LockPost(fullID string) {
+	_, err := Client().Post.Lock(newContext(), fullID)
+
+	if err != nil {
+		log.Printf("LockPost() - %q", err.Error())
+	}
+}
+
+func HidePost(fullID string) {
+	_, err := Client().Post.Hide(newContext(), fullID)
+
+	if err != nil {
+		log.Printf("HidePost() - %q", err.Error())
 	}
 }
 

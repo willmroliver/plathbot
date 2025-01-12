@@ -97,3 +97,8 @@ func (r *UserRepo) UpdateWallet(u *botapi.User, addr string) (err error) {
 
 	return
 }
+
+func (r *UserRepo) AllRedditUsernames() (users []string) {
+	r.db.Model(&model.User{}).Where("reddit_username IS NOT NULL").Pluck("reddit_username", &users)
+	return
+}
