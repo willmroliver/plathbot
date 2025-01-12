@@ -9,7 +9,7 @@ import (
 )
 
 type User struct {
-	gorm.Model
+	*gorm.Model
 	ID             int64        `json:"id" gorm:"primaryKey"`
 	TelegramUser   *botapi.User `json:"telegram_user" gorm:"-"`
 	FirstName      string       `json:"first_name" gorm:"size:64"`

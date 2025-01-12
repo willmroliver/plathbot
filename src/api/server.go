@@ -22,7 +22,8 @@ type Server struct {
 	CommandAPI  *CommandAPI
 	InlineAPI   *InlineAPI
 
-	messageHooks sync.Map
+	chatHooks sync.Map
+	userHooks sync.Map
 }
 
 func NewServer(db *gorm.DB) *Server {
@@ -82,11 +83,13 @@ func (s *Server) Listen() {
 			case <-ctx.Done():
 				return
 			case update := <-updates:
-				if s.DoMessageHook(update.Message) {
-					continue
-				}
+				go func() {
+					if s.DoMessageHook(update.Message) {
+						return
+					}
 
-				NewContext(s, &update).HandleUpdate()
+					NewContext(s, &update).HandleUpdate()
+				}()
 			}
 		}
 	}
@@ -98,8 +101,12 @@ func (s *Server) Listen() {
 	cancel()
 }
 
-func (s *Server) RegisterMessageHook(chatID int64, hook *MessageHook) {
-	s.messageHooks.Store(chatID, hook)
+func (s *Server) RegisterChatHook(chatID int64, hook *MessageHook) {
+	s.chatHooks.Store(chatID, hook)
+}
+
+func (s *Server) RegisterUserHook(userID int64, hook *MessageHook) {
+	s.userHooks.Store(userID, hook)
 }
 
 func (s *Server) DoMessageHook(m *botapi.Message) (success bool) {
@@ -107,17 +114,32 @@ func (s *Server) DoMessageHook(m *botapi.Message) (success bool) {
 		return
 	}
 
-	data, ok := s.messageHooks.Load(m.Chat.ID)
-	if !ok {
-		return
+	ids := [2]int64{m.Chat.ID, m.From.ID}
+	hooks := [2]*MessageHook{nil, nil}
+	maps := [2]*sync.Map{&s.chatHooks, &s.userHooks}
+
+	if data, ok := s.chatHooks.Load(m.Chat.ID); ok {
+		hooks[0] = data.(*MessageHook)
 	}
 
-	if hook := data.(*MessageHook); hook.ExpiresAt.Compare(time.Now()) > -1 {
-		if success = hook.Execute(s, m); success {
-			s.messageHooks.Delete(m.Chat.ID)
+	if data, ok := s.userHooks.Load(m.From.ID); ok {
+		hooks[1] = data.(*MessageHook)
+	}
+
+	for i, hook := range hooks {
+		if hook == nil {
+			continue
 		}
-	} else {
-		s.messageHooks.Delete(m.Chat.ID)
+
+		if hook.ExpiresAt.After(time.Now()) {
+			go func() {
+				if success = hook.Execute(s, m); success {
+					maps[i].Delete(ids[i])
+				}
+			}()
+		} else {
+			maps[i].Delete(ids[i])
+		}
 	}
 
 	return

@@ -42,6 +42,25 @@ func PostBasic(title, text string) *reddit.Submitted {
 	return post
 }
 
+func GetPost(id string) *reddit.Post {
+	post, _, err := Client().Post.Get(newContext(), id)
+
+	if err != nil {
+		log.Printf("GetPost() - %q", err.Error())
+		return nil
+	}
+
+	return post.Post
+}
+
+func DeletePost(fullID string) {
+	_, err := Client().Post.Delete(newContext(), fullID)
+
+	if err != nil {
+		log.Printf("DeletePost() - %q", err.Error())
+	}
+}
+
 func PollComments(postID string, every, dur time.Duration, cb func(*reddit.PostAndComments, any) bool, payload any) []*reddit.Comment {
 	data, _, err := Client().Post.Get(newContext(), postID)
 
