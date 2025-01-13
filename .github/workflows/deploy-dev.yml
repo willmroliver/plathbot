@@ -27,7 +27,7 @@ jobs:
 
     - name: Deploy code to Oracle Cloud
       run: |
-        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ubuntu@143.47.229.144 << 'EOF'
+        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=15 ubuntu@143.47.229.144 << 'EOF'
           echo -e "Host github.com\n  IdentityFile ~/.ssh/github_key\n  User git\n" > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
