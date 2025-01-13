@@ -13,9 +13,9 @@ type User struct {
 	ID             int64        `json:"id" gorm:"primaryKey"`
 	TelegramUser   *botapi.User `json:"telegram_user" gorm:"-"`
 	FirstName      string       `json:"first_name" gorm:"size:64"`
-	Username       string       `json:"username" gorm:"size:100"`
+	Username       string       `json:"username" gorm:"size:100;unique"`
 	PublicWallet   string       `json:"public_wallet" gorm:"size:100"`
-	RedditUsername string       `json:"reddit_username" gorm:"type:varchar(50);default:''"`
+	RedditUsername string       `json:"reddit_username" gorm:"type:varchar(50);default:null;unique"`
 
 	ReactCounts []*ReactCount          `json:"react_counts"`
 	ReactMap    map[string]*ReactCount `json:"-" gorm:"-"`

@@ -52,7 +52,6 @@ func TrackPosts(db *gorm.DB, freq time.Duration) func() {
 
 					for _, c := range p.Comments {
 						if _, ok := users[c.Author]; ok {
-							log.Printf("%s: %s", c.Author, c.Body)
 							ch <- model.NewRedditPostComment(p.Post.ID, c)
 						}
 					}
