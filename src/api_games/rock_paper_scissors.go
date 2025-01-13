@@ -24,6 +24,10 @@ const (
 	MoveScissors Move = "✂️"
 )
 
+var (
+	moveMux = &sync.Mutex{}
+)
+
 type RockPaperScissors struct {
 	*api.Interaction[string]
 	ID          int64
@@ -75,12 +79,14 @@ func RockPaperScissorsQuery(c *api.Context, query *botapi.CallbackQuery, cmd *ap
 	}
 
 	game := val.(*RockPaperScissors)
+	round := game.Round
 
-	if !game.Mu.TryLock() {
+	game.Mu.Lock()
+	defer game.Mu.Unlock()
+
+	if round != game.Round {
 		return
 	}
-
-	defer game.Mu.Unlock()
 
 	switch action {
 	case "accept":
@@ -88,10 +94,25 @@ func RockPaperScissorsQuery(c *api.Context, query *botapi.CallbackQuery, cmd *ap
 			rpsRunning.Delete(game.ID)
 		}
 	case string(MoveRock), string(MovePaper), string(MoveScissors):
-		if i, err := strconv.Atoi(cmd.Next().Get()); err == nil {
-			if done, err := game.DoMove(Move(action), i, query); err == nil && done {
-				time.Sleep(time.Millisecond * 500)
-				game.SendRound(c, query)
+		var i int
+		var done bool
+		var err error
+
+		i, err = strconv.Atoi(cmd.Next().Get())
+		if err != nil || game.Moves[game.Round-1][i] != "" {
+			return
+		}
+
+		done, err = game.DoMove(Move(action), i, query)
+		if !(err == nil && done) {
+			return
+		}
+
+		// Mostly in case of a rate-limit issue.
+		for i := 0; i < 40; i++ {
+			time.Sleep(time.Millisecond * 750)
+			if game.SendRound(c, query) == nil {
+				break
 			}
 		}
 	default:
@@ -154,6 +175,8 @@ func (g *RockPaperScissors) SendRound(c *api.Context, q *botapi.CallbackQuery) (
 	if g.Round++; g.Round > g.TotalRounds {
 		if err = g.SendWinner(c, q); err == nil {
 			rpsRunning.Delete(g.ID)
+		} else {
+			g.Round--
 		}
 
 		return
@@ -189,6 +212,9 @@ func (g *RockPaperScissors) DoMove(move Move, i int, q *botapi.CallbackQuery) (d
 			p2 = "✅"
 		}
 
+		moveMux.Lock()
+		defer moveMux.Unlock()
+
 		m := g.NewMessageUpdate(
 			g.menuBuilder().String(),
 			g.movesKeyboard(p1, p2),
@@ -198,6 +224,8 @@ func (g *RockPaperScissors) DoMove(move Move, i int, q *botapi.CallbackQuery) (d
 			g.Moves[j][i] = move
 		}
 
+		// Protecting against rate-limiting.
+		time.Sleep(time.Millisecond * 400)
 	}
 
 	done = g.Moves[j][0] != "" && g.Moves[j][1] != ""
