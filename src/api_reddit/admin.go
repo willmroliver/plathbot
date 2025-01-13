@@ -59,14 +59,14 @@ func AdminAPI() *api.CallbackAPI {
 type Admin struct {
 	*api.Interaction[string]
 	user *botapi.User
-	repo *repo.Repo
+	repo *repo.RedditPostRepo
 }
 
 func NewAdmin(db *gorm.DB, q *botapi.CallbackQuery) *Admin {
 	return &Admin{
 		api.NewInteraction(q.Message, ""),
 		q.From,
-		repo.NewRepo(db),
+		repo.NewRedditPostRepo(db),
 	}
 }
 
@@ -103,8 +103,8 @@ func (a *Admin) View(c *api.Context, query *botapi.CallbackQuery) {
 		api.KeyboardNavRow(AdminPath),
 	}, fmt.Sprintf("user=%d", a.user.ID))
 
-	posts := []*model.RedditPost{}
-	if err := a.repo.All(&posts); err != nil {
+	posts := a.repo.All()
+	if posts == nil {
 		api.SendUpdate(c.Bot, a.NewMessageUpdate("Error fetching posts.", mu))
 		return
 	}
@@ -183,7 +183,7 @@ func (a *Admin) Remove(c *api.Context, query *botapi.CallbackQuery, cc *api.Call
 	}, fmt.Sprintf("user=%d", c.User.ID))
 
 	if postID := cc.Get(); postID != "" {
-		if err := a.repo.Delete(&model.RedditPost{PostID: postID}); err != nil {
+		if err := a.repo.Delete(postID); err != nil {
 			api.SendUpdate(c.Bot, a.NewMessageUpdate("Error removing post.", mu))
 		} else {
 			api.SendUpdate(c.Bot, a.NewMessageUpdate("✅ Post removed", mu))
@@ -194,8 +194,7 @@ func (a *Admin) Remove(c *api.Context, query *botapi.CallbackQuery, cc *api.Call
 
 	var opts []map[string]string
 
-	posts := []*model.RedditPost{}
-	if err := a.repo.All(&posts); err == nil {
+	if posts := a.repo.All(); posts != nil {
 		opts = make([]map[string]string, len(posts)+1)
 		for i, post := range posts {
 			opts[i] = map[string]string{post.Title: AdminPath + "/remove/" + post.PostID}

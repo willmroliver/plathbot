@@ -15,8 +15,8 @@ func Migrate(db *gorm.DB) (err error) {
 		&model.ReactCount{},
 		&model.React{},
 		&model.File{},
-		&model.RedditPostComment{},
 		&model.RedditPost{},
+		&model.RedditPostComment{},
 	}
 
 	for _, table := range tables {
