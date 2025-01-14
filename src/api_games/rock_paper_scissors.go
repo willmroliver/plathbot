@@ -252,7 +252,7 @@ func (g *RockPaperScissors) SendWinner(c *api.Context, q *botapi.CallbackQuery) 
 	if p1 > p2 {
 		xp := 100 * int64(p1-p2)
 		winner = fmt.Sprintf("%s wins! +%d XP", api.AtUserString(g.Players[0]), xp)
-		s.UpdateXPs(g.Players[1], service.XPTitleGames, xp)
+		s.UpdateXPs(g.Players[0], service.XPTitleGames, xp)
 	} else if p1 < p2 {
 		xp := 100 * int64(p2-p1)
 		winner = fmt.Sprintf("%s wins! +%d XP", api.AtUserString(g.Players[1]), xp)
