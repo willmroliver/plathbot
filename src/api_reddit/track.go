@@ -8,6 +8,7 @@ import (
 	goreddit "github.com/vartanbeno/go-reddit/v2/reddit"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
+	"github.com/willmroliver/plathbot/src/service"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -18,13 +19,14 @@ func TrackPosts(db *gorm.DB, freq time.Duration) func() {
 		run = false
 	}
 
-	userRepo, redditRepo := repo.NewUserRepo(db), repo.NewRedditPostRepo(db)
+	userRepo := repo.NewUserRepo(db)
+	redditService := service.NewRedditService(db)
 
 	go func() {
 		for run {
 			time.Sleep(freq)
 
-			posts := redditRepo.All()
+			posts := redditService.All()
 			if len(posts) == 0 {
 				continue
 			}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -13,6 +14,7 @@ import (
 const (
 	XPTitleEngage = "💕 Engage XP"
 	XPTitleGames  = "🎮 Games XP"
+	XPTitleReddit = "🤖 Shill Score"
 )
 
 var xpServices = map[*gorm.DB]*UserXPService{}
@@ -51,5 +53,37 @@ func (s *UserXPService) UpdateXPs(user *tgbotapi.User, title string, points int6
 	}
 
 	err = s.UserXPRepo.ShiftXP(xp, points)
+	return
+}
+
+func (s *UserXPService) BulkUpdateXPs(users []*model.User, title string, points int64) (err error) {
+	for _, u := range users {
+		if err != nil {
+			s.UserXPRepo.ShiftXP(u.UserXPMap[title], points)
+		} else {
+			err = s.UserXPRepo.ShiftXP(u.UserXPMap[title], points)
+		}
+	}
+
+	return
+}
+
+func (s *UserXPService) UpdateXPsWhere(title string, points int64, clause string, conditions ...interface{}) (err error) {
+	var users []*model.User
+
+	if users = s.UserRepo.AllWhere(clause, conditions...); users == nil {
+		return errors.New("error retrieving users")
+	}
+
+	for _, u := range users {
+		xp := u.UserXPMap[title]
+		if xp == nil {
+			xp = model.NewUserXP(title, u.ID)
+			u.UserXPMap[title] = xp
+		}
+
+		err = s.UserXPRepo.ShiftXP(xp, points)
+	}
+
 	return
 }

@@ -30,7 +30,12 @@ func (r *RedditPostRepo) All() []*model.RedditPost {
 	return posts
 }
 
-func (r *RedditPostRepo) Delete(postID string) (err error) {
-	err = r.db.Select("Comments").Delete(&model.RedditPost{PostID: postID}).Error
+func (r *RedditPostRepo) Expired() (posts []*model.RedditPost) {
+	r.db.Preload("Comments").Where("expires_at < ?", time.Now()).Find(&posts)
+	return
+}
+
+func (r *RedditPostRepo) Delete(postIDs ...string) (err error) {
+	err = r.db.Select("Comments").Where("post_id IN ?", postIDs).Delete(&model.RedditPost{}).Error
 	return
 }

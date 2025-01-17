@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -22,7 +23,9 @@ const (
 	RedditPath  = Path + "/reddit"
 )
 
-var redditsOpen = sync.Map{}
+var (
+	redditsOpen, confirmOpen = sync.Map{}, sync.Map{}
+)
 
 func RedditAPI() *api.CallbackAPI {
 	return api.NewCallbackAPI(
@@ -38,6 +41,11 @@ func RedditAPI() *api.CallbackAPI {
 				"update": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
 					if r := OpenReddit(c.Server.DB, cq); r != nil {
 						r.Update(c, cq)
+					}
+				},
+				"confirm": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
+					if ch, ok := confirmOpen.LoadAndDelete(c.User.ID); ok {
+						ch.(chan struct{}) <- struct{}{}
 					}
 				},
 				"remove": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
@@ -114,22 +122,6 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 			return
 		}
 
-		// Create a new link post
-		post := reddit.PostBasic(
-			"🔗 Account Link Request",
-			`
-Please comment your verification token on this post to complete your account link.
-
-[Disclaimer] This post is part of a Telegram-Reddit verification system.
-It will be hidden & locked after verification, and deleted at a later time.
-			`,
-		)
-
-		if post == nil {
-			api.SendConfig(s.Bot, re.NewMessage("Something went wrong. Please try again", nil))
-			return
-		}
-
 		// Generate a verification token
 		bytes := make([]byte, 15)
 		if _, err := rand.Read(bytes); err != nil {
@@ -144,33 +136,59 @@ It will be hidden & locked after verification, and deleted at a later time.
 		api.SendConfig(s.Bot, re.NewMessage(`
 🔗 Account Link Request
 
-1️⃣ Hit the "Verify" button below
-2️⃣ Comment the verification token on the post
-3️⃣ Come back to this chat to see confirmation
-		`,
-			api.InlineKeyboard([]map[string]string{{"Verify": api.KeyboardLink(post.URL)}}),
+1️⃣ Hit the *Verify* button below
+
+2️⃣ Send the verification token.
+
+3️⃣ Come back here and hit *Confirm* to verify.
+			`,
+			api.InlineKeyboard([]map[string]string{{
+				"Verify": api.KeyboardLink(fmt.Sprintf(
+					"https://www.reddit.com/message/compose/?to=%s&subject=Verify&message=%s",
+					os.Getenv("GO_REDDIT_CLIENT_USERNAME"),
+					token,
+				)),
+			}, {
+				"Confirm": RedditPath + "/confirm",
+			}}),
 		))
+
+		ch := make(chan struct{}, 1)
+		confirmOpen.Store(c.User.ID, ch)
+
+		select {
+		case <-ch:
+			break
+		case <-time.After(time.Minute * 5):
+			confirmOpen.Delete(c.User.ID)
+			return
+		}
 
 		// Poll the post for the verification token
 		type Payload struct {
 			Username, Token string
+			Success         bool
 		}
 
-		comments := reddit.PollComments(post.ID, time.Second*4, time.Minute*5, func(c *goreddit.PostAndComments, payload any) bool {
-			for _, comment := range c.Comments {
-				if comment.Body == token && comment.Author == payload.(*Payload).Username {
-					c.Comments = []*goreddit.Comment{comment}
+		payload := &Payload{Username: m.Text, Token: string(token)}
+
+		reddit.PollInbox(time.Second, 0, func(ms []*goreddit.Message, messages []*goreddit.Message, p any) bool {
+			payload = p.(*Payload)
+
+			for _, m := range append(ms, messages...) {
+				if m.Text == payload.Token && m.Author == payload.Username {
+					payload.Success = true
 					return true
 				}
 			}
 
 			return false
-		}, &Payload{Username: m.Text, Token: string(token)})
+		}, payload)
 
 		// If the verification token was found, link the account
-		if comments != nil {
+		if payload.Success {
 			user := c.GetUser()
-			user.RedditUsername = comments[0].Author
+			user.RedditUsername = payload.Username
 
 			if err := c.UserRepo.Save(user); err != nil {
 				api.SendConfig(s.Bot, re.NewMessage("Something went wrong. Please try again", nil))
@@ -184,10 +202,6 @@ It will be hidden & locked after verification, and deleted at a later time.
 		} else {
 			api.SendConfig(s.Bot, re.NewMessage("Verification failed. Please try again.", nil))
 		}
-
-		// Either way, lock & hide the post
-		reddit.LockPost(post.FullID)
-		reddit.HidePost(post.FullID)
 
 		return
 	}, r, time.Minute*5)
