@@ -105,3 +105,11 @@ func (r *Repo) All(m any) (err error) {
 
 	return
 }
+
+func (r *Repo) AllWhere(m any, clause string, args ...any) (err error) {
+	if err = r.db.Where(clause, args...).Find(m).Error; err != nil {
+		log.Printf("Repo AllWhere() error: %q", err.Error())
+	}
+
+	return
+}

@@ -48,17 +48,31 @@ func (r *UserRepo) Get(u *botapi.User) *model.User {
 		}
 	}
 
-	for _, count := range user.ReactCounts {
-		user.ReactMap[count.Emoji] = count
-	}
-
-	for _, xp := range user.UserXPs {
-		user.UserXPMap[xp.Title] = xp
-	}
-
+	initUser(user)
 	cache.Save(user.ID, user)
-
 	return user
+}
+
+func (r *UserRepo) AllWhere(clause string, conditions ...interface{}) (users []*model.User) {
+	users = []*model.User{}
+
+	err := r.Repo.db.
+		Preload("ReactCounts").
+		Preload("UserXPs").
+		Where(clause, conditions...).
+		Find(&users).
+		Error
+
+	if err != nil {
+		log.Printf("Error reading users: %q", err.Error())
+		return nil
+	}
+
+	for _, u := range users {
+		initUser(u)
+	}
+
+	return
 }
 
 func (r *UserRepo) Save(user *model.User) (err error) {
@@ -101,4 +115,17 @@ func (r *UserRepo) UpdateWallet(u *botapi.User, addr string) (err error) {
 func (r *UserRepo) AllRedditUsernames() (users []string) {
 	r.db.Model(&model.User{}).Where("reddit_username IS NOT NULL").Pluck("reddit_username", &users)
 	return
+}
+
+func initUser(u *model.User) {
+	u.ReactMap = make(map[string]*model.ReactCount)
+	u.UserXPMap = make(map[string]*model.UserXP)
+
+	for _, count := range u.ReactCounts {
+		u.ReactMap[count.Emoji] = count
+	}
+
+	for _, xp := range u.UserXPs {
+		u.UserXPMap[xp.Title] = xp
+	}
 }

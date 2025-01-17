@@ -34,8 +34,8 @@ func NewReactService(db *gorm.DB) *ReactService {
 	return s
 }
 
-func (r *ReactService) Untrack(emoji string) (err error) {
-	if err = r.ReactRepo.Delete(emoji); err != nil {
+func (s *ReactService) Untrack(emoji string) (err error) {
+	if err = s.ReactRepo.Delete(emoji); err != nil {
 		return
 	}
 
@@ -44,11 +44,11 @@ func (r *ReactService) Untrack(emoji string) (err error) {
 		return true
 	})
 
-	r.CountRepo.DeleteBy(&model.ReactCount{}, "emoji", emoji)
+	s.CountRepo.DeleteBy(&model.ReactCount{}, "emoji", emoji)
 	return
 }
 
-func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
+func (s *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 	if m.User == nil {
 		err = errors.New("user is nil")
 		return
@@ -58,7 +58,7 @@ func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 		return
 	}
 
-	user := r.UserRepo.Get(m.User)
+	user := s.UserRepo.Get(m.User)
 
 	if user == nil {
 		err = fmt.Errorf("cannot find user %+v", user)
@@ -71,12 +71,12 @@ func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 		}
 
 		react.Emoji = util.NormalizeEmoji(react.Emoji)
-		if react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
+		if react.Emoji == "" || s.ReactRepo.Get(react.Emoji) == nil {
 			continue
 		}
 
 		if data := user.ReactMap[react.Emoji]; data != nil && data.Count > 0 {
-			if err = r.CountRepo.ShiftCount(data, -1); err != nil {
+			if err = s.CountRepo.ShiftCount(data, -1); err != nil {
 				return
 			}
 		}
@@ -88,17 +88,17 @@ func (r *ReactService) UpdateCounts(m *botapi.Message) (err error) {
 		}
 
 		react.Emoji = util.NormalizeEmoji(react.Emoji)
-		if react.Emoji == "" || r.ReactRepo.Get(react.Emoji) == nil {
+		if react.Emoji == "" || s.ReactRepo.Get(react.Emoji) == nil {
 			continue
 		}
 
 		if data := user.ReactMap[react.Emoji]; data != nil {
-			if err = r.CountRepo.ShiftCount(data, 1); err != nil {
+			if err = s.CountRepo.ShiftCount(data, 1); err != nil {
 				return
 			}
 		} else {
 			data = model.NewReactCount(react.Emoji, user.ID)
-			if err = r.CountRepo.ShiftCount(data, 1); err != nil {
+			if err = s.CountRepo.ShiftCount(data, 1); err != nil {
 				return
 			}
 

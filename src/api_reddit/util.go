@@ -14,7 +14,7 @@ func Client() *reddit.Client {
 	if client == nil {
 		var err error
 
-		client, err = reddit.NewClient(reddit.Credentials{}, reddit.FromEnv, reddit.WithUserAgent("p1ath_bot:XbJRexGWkV2SAPUsqrZWGA (by u/p1ath_bot)"))
+		client, err = reddit.NewClient(reddit.Credentials{}, reddit.FromEnv)
 
 		if err != nil {
 			log.Printf("NewClient() - %q", err.Error())
@@ -28,7 +28,10 @@ func Client() *reddit.Client {
 }
 
 func PostBasic(title, text string) *reddit.Submitted {
-	post, _, err := Client().Post.SubmitText(newContext(), reddit.SubmitTextRequest{
+	ctx, cancel := newContext()
+	defer cancel()
+
+	post, _, err := Client().Post.SubmitText(ctx, reddit.SubmitTextRequest{
 		Subreddit: "p1ath_bot_messages",
 		Title:     title,
 		Text:      text,
@@ -43,7 +46,10 @@ func PostBasic(title, text string) *reddit.Submitted {
 }
 
 func GetPost(id string) *reddit.Post {
-	post, _, err := Client().Post.Get(newContext(), id)
+	ctx, cancel := newContext()
+	defer cancel()
+
+	post, _, err := Client().Post.Get(ctx, id)
 
 	if err != nil {
 		log.Printf("GetPost() - %q", err.Error())
@@ -54,7 +60,10 @@ func GetPost(id string) *reddit.Post {
 }
 
 func DeletePost(fullID string) {
-	_, err := Client().Post.Delete(newContext(), fullID)
+	ctx, cancel := newContext()
+	defer cancel()
+
+	_, err := Client().Post.Delete(ctx, fullID)
 
 	if err != nil {
 		log.Printf("DeletePost() - %q", err.Error())
@@ -62,7 +71,10 @@ func DeletePost(fullID string) {
 }
 
 func LockPost(fullID string) {
-	_, err := Client().Post.Lock(newContext(), fullID)
+	ctx, cancel := newContext()
+	defer cancel()
+
+	_, err := Client().Post.Lock(ctx, fullID)
 
 	if err != nil {
 		log.Printf("LockPost() - %q", err.Error())
@@ -70,7 +82,10 @@ func LockPost(fullID string) {
 }
 
 func HidePost(fullID string) {
-	_, err := Client().Post.Hide(newContext(), fullID)
+	ctx, cancel := newContext()
+	defer cancel()
+
+	_, err := Client().Post.Hide(ctx, fullID)
 
 	if err != nil {
 		log.Printf("HidePost() - %q", err.Error())
@@ -78,7 +93,10 @@ func HidePost(fullID string) {
 }
 
 func PollComments(postID string, every, dur time.Duration, cb func(*reddit.PostAndComments, any) bool, payload any) []*reddit.Comment {
-	data, _, err := Client().Post.Get(newContext(), postID)
+	ctx, cancel := newContext()
+	defer cancel()
+
+	data, _, err := Client().Post.Get(ctx, postID)
 
 	if err != nil {
 		log.Printf("PollComments() - %q", err.Error())
@@ -87,14 +105,13 @@ func PollComments(postID string, every, dur time.Duration, cb func(*reddit.PostA
 
 	until := time.Now().Add(dur)
 
-	for {
-		if cb(data, payload) || time.Now().After(until) {
-			break
-		}
-
+	for !cb(data, payload) && time.Now().Before(until) {
 		time.Sleep(every)
 
-		data, _, err = Client().Post.Get(newContext(), postID)
+		ctx1, cancel1 := newContext()
+		data, _, err = Client().Post.Get(ctx1, postID)
+		cancel1()
+
 		if err != nil {
 			log.Printf("PollComments() - %q", err.Error())
 			return nil
@@ -104,7 +121,34 @@ func PollComments(postID string, every, dur time.Duration, cb func(*reddit.PostA
 	return data.Comments
 }
 
-func newContext() context.Context {
-	c, _ := context.WithTimeout(context.Background(), time.Second*10)
-	return c
+func PollInbox(every, dur time.Duration, cb func([]*reddit.Message, []*reddit.Message, any) bool, payload any) []*reddit.Message {
+	if dur == 0 {
+		dur = every - time.Nanosecond
+	}
+
+	until, after := time.Now().Add(dur), ""
+
+	for time.Now().Before(until) {
+		ctx, cancel := newContext()
+		defer cancel()
+
+		coms, msgs, _, err := Client().Message.InboxUnread(ctx, &reddit.ListOptions{After: after})
+
+		if err != nil {
+			log.Printf("PollInbox() - %q", err.Error())
+			return nil
+		}
+
+		if cb(coms, msgs, payload) {
+			return append(coms, msgs...)
+		}
+
+		time.Sleep(every)
+	}
+
+	return nil
+}
+
+func newContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), time.Second*10)
 }
