@@ -2,9 +2,10 @@ package account
 
 import (
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ import (
 	reddit "github.com/willmroliver/plathbot/src/api_reddit"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
+	"github.com/willmroliver/plathbot/src/util"
 	"gorm.io/gorm"
 )
 
@@ -44,7 +46,7 @@ func RedditAPI() *api.CallbackAPI {
 					}
 				},
 				"confirm": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
-					if ch, ok := confirmOpen.LoadAndDelete(c.User.ID); ok {
+					if ch, ok := confirmOpen.Load(c.User.ID); ok {
 						ch.(chan struct{}) <- struct{}{}
 					}
 				},
@@ -118,18 +120,18 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 		done = true
 		re := data.(*Reddit)
 
-		if !r.Is("update") {
+		if !(r.Is("update") && util.TryLockFor(fmt.Sprintf("%p reddit", data), time.Minute*5)) {
 			return
 		}
 
 		// Generate a verification token
-		bytes := make([]byte, 15)
+		bytes := make([]byte, 16)
 		if _, err := rand.Read(bytes); err != nil {
 			log.Printf("Error generating reddit link token: %q", bytes)
 			return
 		}
 
-		token := base64.StdEncoding.EncodeToString(bytes)
+		token := hex.EncodeToString(bytes)
 
 		// Send the verification token & post
 		api.SendConfig(s.Bot, re.NewMessage(token, nil))
@@ -145,62 +147,75 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 			api.InlineKeyboard([]map[string]string{{
 				"Verify": api.KeyboardLink(fmt.Sprintf(
 					"https://www.reddit.com/message/compose/?to=%s&subject=Verify&message=%s",
-					os.Getenv("GO_REDDIT_CLIENT_USERNAME"),
-					token,
+					url.QueryEscape(os.Getenv("GO_REDDIT_CLIENT_USERNAME")),
+					url.QueryEscape(token),
 				)),
 			}, {
 				"Confirm": RedditPath + "/confirm",
 			}}),
 		))
 
+		tryConfirm := func() bool {
+			// Poll the post for the verification token
+			type Payload struct {
+				Username, Token string
+				Success         bool
+			}
+
+			payload := &Payload{Username: m.Text, Token: string(token)}
+
+			reddit.PollInbox(time.Second, 0, func(ms []*goreddit.Message, messages []*goreddit.Message, p any) bool {
+				payload = p.(*Payload)
+
+				for _, m := range append(ms, messages...) {
+					if m.Text == payload.Token && m.Author == payload.Username {
+						payload.Success = true
+						return true
+					}
+				}
+
+				return false
+			}, payload)
+
+			// If the verification token was found, link the account
+			if payload.Success {
+				user := c.GetUser()
+				user.RedditUsername = payload.Username
+
+				if err := c.UserRepo.Save(user); err != nil {
+					api.SendConfig(s.Bot, re.NewMessage("Something went wrong.", nil))
+					return true
+				}
+
+				api.SendConfig(s.Bot, re.NewMessage(
+					fmt.Sprintf("✅ Linked to %q", user.RedditUsername),
+					api.InlineKeyboard([]map[string]string{{Title: Path}}, fmt.Sprintf("user=%d", re.user.ID)),
+				))
+
+				return true
+			} else {
+				api.SendConfig(s.Bot, re.NewMessage("Verification failed.", nil))
+				return false
+			}
+		}
+
 		ch := make(chan struct{}, 1)
 		confirmOpen.Store(c.User.ID, ch)
 
-		select {
-		case <-ch:
-			break
-		case <-time.After(time.Minute * 5):
-			confirmOpen.Delete(c.User.ID)
-			return
-		}
+		awaiting := true
 
-		// Poll the post for the verification token
-		type Payload struct {
-			Username, Token string
-			Success         bool
-		}
-
-		payload := &Payload{Username: m.Text, Token: string(token)}
-
-		reddit.PollInbox(time.Second, 0, func(ms []*goreddit.Message, messages []*goreddit.Message, p any) bool {
-			payload = p.(*Payload)
-
-			for _, m := range append(ms, messages...) {
-				if m.Text == payload.Token && m.Author == payload.Username {
-					payload.Success = true
-					return true
+		for awaiting {
+			select {
+			case <-ch:
+				if tryConfirm() {
+					confirmOpen.Delete(c.User.ID)
+					return
 				}
-			}
-
-			return false
-		}, payload)
-
-		// If the verification token was found, link the account
-		if payload.Success {
-			user := c.GetUser()
-			user.RedditUsername = payload.Username
-
-			if err := c.UserRepo.Save(user); err != nil {
-				api.SendConfig(s.Bot, re.NewMessage("Something went wrong. Please try again", nil))
+				continue
+			case <-time.After(time.Minute * 5):
+				confirmOpen.Delete(c.User.ID)
 				return
 			}
-
-			api.SendConfig(s.Bot, re.NewMessage(
-				fmt.Sprintf("✅ Linked to %q", user.RedditUsername),
-				api.InlineKeyboard([]map[string]string{{Title: Path}}, fmt.Sprintf("user=%d", re.user.ID)),
-			))
-		} else {
-			api.SendConfig(s.Bot, re.NewMessage("Verification failed. Please try again.", nil))
 		}
 
 		return
