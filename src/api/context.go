@@ -126,6 +126,17 @@ func (ctx *Context) HandleCallbackQuery() {
 		return
 	}
 
+	if strings.HasPrefix(m.Data, "cmd|") {
+		ctx.Update.Message = &botapi.Message{
+			From: m.From,
+			Chat: m.Message.Chat,
+			Text: m.Data[4:],
+		}
+
+		ctx.HandleMessage()
+		return
+	}
+
 	ctx.User = m.From
 	ctx.Chat = m.Message.Chat
 	ctx.Message = m.Message

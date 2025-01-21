@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -162,7 +163,7 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 				Success         bool
 			}
 
-			payload := &Payload{Username: m.Text, Token: string(token)}
+			payload := &Payload{Username: strings.TrimPrefix(m.Text, "u/"), Token: string(token)}
 
 			reddit.PollInbox(time.Second, 0, func(ms []*goreddit.Message, messages []*goreddit.Message, p any) bool {
 				payload = p.(*Payload)
@@ -187,10 +188,10 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 					return true
 				}
 
-				api.SendConfig(s.Bot, re.NewMessage(
-					fmt.Sprintf("✅ Linked to %q", user.RedditUsername),
-					api.InlineKeyboard([]map[string]string{{Title: Path}}, fmt.Sprintf("user=%d", re.user.ID)),
-				))
+				msg := botapi.NewMessage(c.Chat.ID, fmt.Sprintf("✅ Linked to %q", user.RedditUsername))
+				msg.ReplyMarkup = api.InlineKeyboard([]map[string]string{{Title: Path}}, fmt.Sprintf("user=%d", re.user.ID))
+
+				api.SendConfig(s.Bot, msg)
 
 				return true
 			} else {
