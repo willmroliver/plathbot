@@ -5,6 +5,7 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
+	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
 )
 
@@ -23,7 +24,7 @@ func API(c *api.Context, m *botapi.Message, args ...string) {
 	}
 
 	if action, ok := actions[args[0]]; ok {
-		action(c, m, args...)
+		action(c, m, args[1:]...)
 	}
 }
 
@@ -68,6 +69,56 @@ func add(c *api.Context, m *botapi.Message, args ...string) {
 	c.Server.RegisterUserHook(c.User.ID, hook)
 }
 
-func list(c *api.Context, m *botapi.Message, args ...string)   {}
-func get(c *api.Context, m *botapi.Message, args ...string)    {}
-func delete(c *api.Context, m *botapi.Message, args ...string) {}
+func list(c *api.Context, m *botapi.Message, args ...string) {
+	r := repo.NewFileRepo(c.Server.DB)
+
+	files := r.List("/pfp", "", 0, 1000, "Photo")
+	if files == nil {
+		return
+	}
+
+	msg := botapi.NewMessage(c.Chat.ID, "🎨 PFPs 📸")
+
+	mu := make([][]botapi.InlineKeyboardButton, len(files))
+
+	if c.IsAdmin() && m.Chat.Type == "private" {
+		for i, f := range files {
+			mu[i] = []botapi.InlineKeyboardButton{
+				botapi.NewInlineKeyboardButtonData(f.Name+" 👀", "cmd|/pfp get "+f.FileUniqueID),
+				botapi.NewInlineKeyboardButtonData("🗑️", "cmd|/pfp delete "+f.FileUniqueID),
+			}
+		}
+	} else {
+		for i, f := range files {
+			mu[i] = []botapi.InlineKeyboardButton{
+				botapi.NewInlineKeyboardButtonData(f.Name+" 👀", "cmd|/pfp get "+f.FileUniqueID),
+			}
+		}
+	}
+
+	msg.ReplyMarkup = botapi.NewInlineKeyboardMarkup(mu...)
+	api.SendConfig(c.Bot, msg)
+}
+
+func get(c *api.Context, m *botapi.Message, args ...string) {
+	if len(args) == 0 {
+		return
+	}
+
+	file := &model.File{}
+
+	if repo.NewFileRepo(c.Server.DB).GetBy(file, "file_unique_id", args[0]) == nil {
+		m := botapi.NewPhoto(c.Chat.ID, botapi.FileID(file.FileID))
+		api.SendConfig(c.Bot, m)
+	}
+}
+
+func delete(c *api.Context, m *botapi.Message, args ...string) {
+	if !c.IsAdmin() || len(args) == 0 {
+		return
+	}
+
+	repo.NewFileRepo(c.Server.DB).DeleteBy(&model.File{}, "file_unique_id", args[0])
+
+	api.SendBasic(c.Bot, c.Chat.ID, "✅ File deleted")
+}

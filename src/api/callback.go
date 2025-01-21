@@ -265,10 +265,10 @@ type CallbackCmd struct {
 // NewCallbackCmd creates a new CallbackCmd, parsing the 'cmd' string for a prefix of
 // comma-separated tags. These can be individual values or key=value pairs.
 //
-//   - "action/to/something/" 					- No tags
-//   - "tag1,tag2 action/to/something/" 		- Value tags
-//   - "user=158,chat=20 action/to/something/" 	- Key-value tags
-//   - "user=158,tag2 action/to/something/" 	- Mixed tags
+//   - action/to/something/ 					- No tags
+//   - tag1,tag2|action/to/something/ 			- Value tags
+//   - user=158,chat=20|action/to/something/ 	- Key-value tags
+//   - user=158,tag2|action/to/something/ 		- Mixed tags
 func NewCallbackCmd(cmd string) *CallbackCmd {
 	tags := map[string]string{}
 	from := 0

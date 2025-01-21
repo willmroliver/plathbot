@@ -3,6 +3,7 @@ package reddit
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,13 +127,22 @@ func (a *Admin) View(c *api.Context, query *botapi.CallbackQuery) {
 
 func (a *Admin) Update(c *api.Context, query *botapi.CallbackQuery) {
 	api.SendUpdate(c.Bot, a.NewMessageUpdate(`
-Okay, send the post ID you'd like to start tracking. ID can be found in the URL, E.g:
+Okay, send the post URL OR post ID you'd like to start tracking. ID can be found in the URL, E.g:
 
 /r/SolanaMemeCoins/comments/1hetkr8/plath_holding_strong/ -> '1hetkr8'
 	`, nil))
 
 	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) (done bool) {
-		ad, post := data.(*Admin), GetPost(m.Text)
+		postID := m.Text
+
+		if i := strings.Index(postID, "/comments/"); i > -1 {
+			start := i + len("/comments/")
+			if j := strings.Index(postID[start:], "/"); j > -1 {
+				postID = postID[start : start+j]
+			}
+		}
+
+		ad, post := data.(*Admin), GetPost(postID)
 
 		if post == nil {
 			api.SendBasic(c.Bot, c.Chat.ID, "Invalid post ID.")
@@ -140,13 +150,13 @@ Okay, send the post ID you'd like to start tracking. ID can be found in the URL,
 
 		r := model.NewRedditPost(post)
 
-		api.SendUpdate(c.Bot, ad.NewMessageUpdate(`
+		api.SendBasic(c.Bot, c.Chat.ID, `
 How long do you want to track this post for? E.g:
 
 '24h'
 '1h30m'
 '3h 15m 30 s'
-		`, nil))
+		`)
 
 		hook, ch := api.GetDurationHook(c.Chat.ID, time.Minute*5)
 		s.RegisterUserHook(c.User.ID, hook)

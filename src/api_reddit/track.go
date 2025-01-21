@@ -61,6 +61,8 @@ func TrackPosts(db *gorm.DB, freq time.Duration) func() {
 					wg.Done()
 					return
 				}, nil)
+
+				time.Sleep(time.Millisecond * 100)
 			}
 
 			wg.Wait()

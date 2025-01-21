@@ -123,7 +123,7 @@ func PollComments(postID string, every, dur time.Duration, cb func(*reddit.PostA
 
 func PollInbox(every, dur time.Duration, cb func([]*reddit.Message, []*reddit.Message, any) bool, payload any) []*reddit.Message {
 	if dur == 0 {
-		dur = every - time.Nanosecond
+		dur = every - time.Millisecond
 	}
 
 	until, after := time.Now().Add(dur), ""
