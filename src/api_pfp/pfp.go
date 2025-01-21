@@ -75,13 +75,18 @@ func list(c *api.Context, m *botapi.Message, args ...string) {
 	files := r.List("/pfp", "", 0, 1000, "Photo")
 	if files == nil {
 		return
+	} else if len(files) == 0 {
+		api.SendBasic(c.Bot, c.Chat.ID, "No PFPs found :(")
+		return
 	}
 
 	msg := botapi.NewMessage(c.Chat.ID, "🎨 PFPs 📸")
 
-	mu := make([][]botapi.InlineKeyboardButton, len(files))
+	var mu [][]botapi.InlineKeyboardButton
 
-	if c.IsAdmin() && m.Chat.Type == "private" {
+	if c.IsAdmin() && m.Chat.Type == "private" && false {
+		mu = make([][]botapi.InlineKeyboardButton, len(files))
+
 		for i, f := range files {
 			mu[i] = []botapi.InlineKeyboardButton{
 				botapi.NewInlineKeyboardButtonData(f.Name+" 👀", "cmd|/pfp get "+f.FileUniqueID),
@@ -89,9 +94,15 @@ func list(c *api.Context, m *botapi.Message, args ...string) {
 			}
 		}
 	} else {
+		mu = make([][]botapi.InlineKeyboardButton, (len(files)+2)/3)
+		row := make([]botapi.InlineKeyboardButton, 0, 3)
+
 		for i, f := range files {
-			mu[i] = []botapi.InlineKeyboardButton{
-				botapi.NewInlineKeyboardButtonData(f.Name+" 👀", "cmd|/pfp get "+f.FileUniqueID),
+			row = append(row, botapi.NewInlineKeyboardButtonData(f.Name[5:]+" 👀", "cmd|/pfp get "+f.FileUniqueID))
+
+			if i%3 == 2 || i+1 == len(files) {
+				mu[i/3] = row
+				row = make([]botapi.InlineKeyboardButton, 0, 3)
 			}
 		}
 	}
