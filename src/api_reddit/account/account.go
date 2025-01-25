@@ -36,7 +36,7 @@ func init() {
 func API() *api.CallbackAPI {
 	return api.NewCallbackAPI(
 		reddit.Title,
-		reddit.Path,
+		account.Path+"/"+reddit.Path,
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
 				"view": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
