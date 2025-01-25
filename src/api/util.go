@@ -167,3 +167,31 @@ func AtBotString(bot *botapi.BotAPI) string {
 func ToPrivateString(bot *botapi.BotAPI, cmd string) string {
 	return fmt.Sprintf("tg://resolve?domain=%s&start=%s", bot.Self.UserName, cmd)
 }
+
+func MarkdownV2Cols(items []string, cols int) (res string) {
+	maxes := make([]int, cols)
+
+	for i := range len(items) {
+		if n := len(items[i]); n > maxes[i%cols] {
+			maxes[i%cols] = n
+		}
+	}
+
+	for i := range maxes {
+		maxes[i] += 2
+	}
+
+	res += "```\n"
+
+	for i, item := range items {
+		res += item + strings.Repeat(" ", maxes[i%cols]-len(item))
+
+		if i%cols == cols-1 {
+			res += "\n"
+		}
+	}
+
+	res += "\n```"
+
+	return
+}

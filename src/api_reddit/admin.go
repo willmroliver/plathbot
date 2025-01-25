@@ -1,3 +1,6 @@
+//go:build reddit
+// +build reddit
+
 package reddit
 
 import (

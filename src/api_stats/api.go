@@ -1,9 +1,11 @@
+//go:build stats
+// +build stats
+
 package stats
 
 import (
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
-	emoji "github.com/willmroliver/plathbot/src/api_emoji"
 	"github.com/willmroliver/plathbot/src/repo"
 )
 
@@ -12,7 +14,13 @@ const (
 	Path  = "stats"
 )
 
-var emojiAPI = emoji.TableAPI()
+var (
+	Extensions api.CallbackExtensions
+)
+
+func init() {
+	api.RegisterCallbackAPI(Path, API)
+}
 
 func API() *api.CallbackAPI {
 	return api.NewCallbackAPI(
@@ -28,7 +36,6 @@ func API() *api.CallbackAPI {
 					}
 				}
 
-				actions["emojis"] = emojiAPI.Select
 				return
 			},
 			DynamicOptions: func(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (options []map[string]string) {
@@ -39,13 +46,12 @@ func API() *api.CallbackAPI {
 						options[i] = map[string]string{title: title}
 					}
 
-					options[len(options)-2] = map[string]string{emoji.Title: "emojis"}
 					options[len(options)-1] = api.KeyboardNavRow("..")
 
 					return
 				}
 
-				return []map[string]string{{emoji.Title: "emojis"}, api.KeyboardNavRow("..")}
+				return []map[string]string{api.KeyboardNavRow("..")}
 			},
 		},
 	)

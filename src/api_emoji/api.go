@@ -1,3 +1,6 @@
+//go:build emoji
+// +build emoji
+
 package emoji
 
 import (
@@ -15,6 +18,10 @@ var (
 	tableAPI = TableAPI()
 	adminAPI = AdminAPI()
 )
+
+func init() {
+	api.RegisterCallbackAPI(Path, API)
+}
 
 func API() *api.CallbackAPI {
 	return api.NewCallbackAPI(

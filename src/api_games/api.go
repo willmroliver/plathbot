@@ -1,3 +1,6 @@
+//go:build games
+// +build games
+
 package games
 
 import (
@@ -10,6 +13,10 @@ const (
 	Title = "🎮 Games"
 	Path  = "games"
 )
+
+func init() {
+	api.RegisterCallbackAPI(Path, API)
+}
 
 func API() *api.CallbackAPI {
 	return api.NewCallbackAPI(

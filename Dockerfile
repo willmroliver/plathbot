@@ -22,7 +22,7 @@ RUN for lib in ./lib/*; do \
 RUN go mod tidy && go mod download && go mod vendor
 
 # Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -o main ./src
+RUN ./build.sh
 
 # Final stage
 FROM alpine:latest

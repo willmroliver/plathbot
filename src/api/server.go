@@ -7,12 +7,23 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	d "github.com/willmroliver/plathbot/src/db"
 	"github.com/willmroliver/plathbot/src/util"
 	"gorm.io/gorm"
+)
+
+var (
+	inlineActions  = map[string]InlineAction{}
+	commandActions = map[string]CommandAction{}
+	callbackAPIs   = map[string]func() *CallbackAPI{}
+
+	onCreateHooks     = []func(*Server){}
+	beforeListenHooks = []func(*Server){}
 )
 
 type Server struct {
@@ -24,6 +35,8 @@ type Server struct {
 
 	chatHooks sync.Map
 	userHooks sync.Map
+
+	callbackAPIs []*CallbackAPI
 }
 
 func NewServer(db *gorm.DB) *Server {
@@ -54,11 +67,64 @@ func NewServer(db *gorm.DB) *Server {
 	}
 
 	bot.Client = httpClient
-
-	return &Server{
+	s := &Server{
 		Bot: bot,
 		DB:  db,
 	}
+
+	s.InlineAPI = &InlineAPI{
+		Actions: map[string]InlineAction{},
+	}
+
+	s.CommandAPI = &CommandAPI{
+		Actions: map[string]CommandAction{},
+	}
+
+	s.CallbackAPI = &CallbackAPI{
+		Title:   "🚀🌖 P1ath Hub",
+		Actions: map[string]CallbackAction{},
+		DynamicOptions: func(ctx *Context, cq *botapi.CallbackQuery, cc *CallbackCmd) (opts []map[string]string) {
+			apis := s.callbackAPIs
+
+			opts = make([]map[string]string, len(apis))
+			public := ctx.Chat.Type != "private"
+
+			for i, a := range apis {
+				if a.PrivateOnly && public {
+					opts[i] = map[string]string{a.Title: KeyboardLink(ToPrivateString(ctx.Bot, a.Path))}
+				} else {
+					opts[i] = map[string]string{a.Title: a.Path}
+				}
+			}
+
+			return
+		},
+	}
+
+	s.callbackAPIs = make([]*CallbackAPI, 0)
+
+	for cmd, action := range inlineActions {
+		s.RegisterInlineAction(cmd, action)
+	}
+
+	for cmd, action := range commandActions {
+		s.RegisterCommandAction(cmd, action)
+	}
+
+	for _, api := range callbackAPIs {
+		s.RegisterCallbackAPI(api())
+	}
+
+	for _, hook := range onCreateHooks {
+		hook(s)
+	}
+
+	log.Println("Server: Migrating tables...")
+	defer log.Printf("Server: Migration complete")
+
+	d.Migrate(db)
+
+	return s
 }
 
 func (s *Server) Listen() {
@@ -95,10 +161,45 @@ func (s *Server) Listen() {
 	}
 
 	util.InitLockerTidy(time.Minute * 30)
+
+	for _, hook := range beforeListenHooks {
+		hook(s)
+	}
+
 	go listen()
 
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
 	cancel()
+}
+
+func RegisterInlineAction(cmd string, action InlineAction) {
+	inlineActions[cmd] = action
+}
+
+func RegisterCommandAction(cmd string, action CommandAction) {
+	commandActions[cmd] = action
+}
+
+func RegisterCallbackAPI(cmd string, api func() *CallbackAPI) {
+	callbackAPIs[cmd] = api
+}
+
+func (s *Server) RegisterInlineAction(cmd string, action InlineAction) {
+	s.InlineAPI.Actions[cmd] = action
+}
+
+func (s *Server) RegisterCommandAction(cmd string, action CommandAction) {
+	s.CommandAPI.Actions[cmd] = action
+}
+
+func (s *Server) RegisterCallbackAPI(api *CallbackAPI) {
+	cmd := api.Path
+	if i := strings.LastIndex(cmd, "/"); i != -1 {
+		cmd = cmd[i+1:]
+	}
+
+	s.callbackAPIs = append(s.callbackAPIs, api)
+	s.CallbackAPI.Actions[cmd] = api.Select
 }
 
 func (s *Server) RegisterChatHook(chatID int64, hook *MessageHook) {
@@ -143,4 +244,12 @@ func (s *Server) DoMessageHook(m *botapi.Message) (success bool) {
 	}
 
 	return
+}
+
+func OnCreate(hook func(*Server)) {
+	onCreateHooks = append(onCreateHooks, hook)
+}
+
+func BeforeListen(hook func(*Server)) {
+	beforeListenHooks = append(beforeListenHooks, hook)
 }

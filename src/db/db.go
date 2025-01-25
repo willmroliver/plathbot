@@ -1,7 +1,6 @@
 package db
 
 import (
-	"log"
 	"sync"
 
 	"gorm.io/driver/sqlite"
@@ -22,15 +21,6 @@ func Open(name string) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(name), &gorm.Config{})
 	if err != nil {
 		return nil, err
-	}
-
-	log.Println("SQLite connection opened. Migrating tables...")
-
-	if err = Migrate(db); err != nil {
-		log.Printf("Migration error")
-		return nil, err
-	} else {
-		log.Println("Migration complete.")
 	}
 
 	pool[name] = db
