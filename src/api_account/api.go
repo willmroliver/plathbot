@@ -1,8 +1,10 @@
+//go:build account
+// +build account
+
 package account
 
 import (
-	"time"
-
+	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
 )
 
@@ -13,29 +15,38 @@ const (
 
 var (
 	walletAPI = WalletAPI()
-	redditAPI = RedditAPI()
+
+	Extensions api.CallbackExtensions
 )
 
+func init() {
+	api.RegisterCallbackAPI(Path, API)
+}
+
 func API() *api.CallbackAPI {
-	wallet, reddit, xp := "wallet", "reddit", "xp"
+	wallet := "wallet"
 
 	return api.NewCallbackAPI(
 		Title,
 		Path,
 		&api.CallbackConfig{
-			Actions: map[string]api.CallbackAction{
-				wallet: walletAPI.Select,
-				reddit: redditAPI.Select,
-				xp:     XPQuery,
+			DynamicActions: func(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (opts map[string]api.CallbackAction) {
+				opts = map[string]api.CallbackAction{
+					wallet: walletAPI.Select,
+				}
+
+				return
 			},
-			PublicCooldown: time.Second * 15,
-			PrivateOptions: []map[string]string{
-				{WalletTitle: wallet},
-				{RedditTitle: reddit},
-				{XPTitle: xp},
-				api.KeyboardNavRow(".."),
+			DynamicOptions: func(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) (opts []map[string]string) {
+				opts = []map[string]string{
+					{WalletTitle: wallet},
+					api.KeyboardNavRow(".."),
+				}
+
+				return
 			},
 			PrivateOnly: true,
+			Extensions:  Extensions,
 		},
 	)
 }

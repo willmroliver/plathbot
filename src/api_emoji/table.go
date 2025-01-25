@@ -1,3 +1,6 @@
+//go:build emoji
+// +build emoji
+
 package emoji
 
 import (

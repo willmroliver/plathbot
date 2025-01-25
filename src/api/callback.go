@@ -26,6 +26,27 @@ var (
 
 type CallbackAction func(*Context, *botapi.CallbackQuery, *CallbackCmd)
 
+type CallbackExtension struct {
+	title, cmd string
+	action     CallbackAction
+}
+
+type CallbackExtensions []*CallbackExtension
+
+func (exts *CallbackExtensions) ExtendAPI(title, cmd string, action CallbackAction) {
+	*exts = append(*exts, &CallbackExtension{title, cmd, action})
+}
+
+func (exts *CallbackExtensions) Options() []map[string]string {
+	opts := make([]map[string]string, len(*exts))
+
+	for i, ext := range *exts {
+		opts[i] = map[string]string{ext.title: ext.cmd}
+	}
+
+	return opts
+}
+
 type CallbackConfig struct {
 	Actions        map[string]CallbackAction
 	DynamicActions func(*Context, *botapi.CallbackQuery, *CallbackCmd) map[string]CallbackAction
@@ -35,6 +56,7 @@ type CallbackConfig struct {
 	PublicOnly     bool
 	PrivateOptions []map[string]string
 	PrivateOnly    bool
+	Extensions     CallbackExtensions
 }
 
 type CallbackAPI struct {
@@ -48,9 +70,14 @@ type CallbackAPI struct {
 	PublicOnly     bool
 	PrivateOptions []map[string]string
 	PrivateOnly    bool
+	Extensions     CallbackExtensions
 }
 
 func NewCallbackAPI(title, path string, config *CallbackConfig) (api *CallbackAPI) {
+	if config.Actions == nil {
+		config.Actions = make(map[string]CallbackAction)
+	}
+
 	api = &CallbackAPI{
 		Title:          title,
 		Path:           path,
@@ -62,6 +89,18 @@ func NewCallbackAPI(title, path string, config *CallbackConfig) (api *CallbackAP
 		PublicOnly:     config.PublicOnly,
 		PrivateOptions: config.PrivateOptions,
 		PrivateOnly:    config.PrivateOnly,
+		Extensions:     config.Extensions,
+	}
+
+	for _, ext := range api.Extensions {
+		api.Actions[ext.cmd] = ext.action
+
+		if !api.PublicOnly {
+			api.PrivateOptions = append(api.PrivateOptions, map[string]string{ext.title: ext.cmd})
+		}
+		if !api.PrivateOnly {
+			api.PublicOptions = append(api.PublicOptions, map[string]string{ext.title: ext.cmd})
+		}
 	}
 
 	if config.DynamicOptions == nil {
@@ -85,7 +124,9 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 	}
 
 	if api.DynamicActions != nil {
-		api.Actions = api.DynamicActions(c, q, cc)
+		for k, v := range api.DynamicActions(c, q, cc) {
+			api.Actions[k] = v
+		}
 	}
 
 	var cmd string
@@ -112,7 +153,7 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 	}
 
 	if cmd == "help" || cmd == "?" {
-		api.sendHelp(c, q)
+		api.SendHelp(c, q, cc)
 		return
 	}
 
@@ -134,7 +175,12 @@ func (api *CallbackAPI) Expose(c *Context, q *botapi.CallbackQuery, cc *Callback
 	opts := &api.PublicOptions
 
 	if api.DynamicOptions != nil {
-		api.PublicOptions = api.resolveOpts(api.DynamicOptions(c, q, cc))
+		api.PublicOptions = api.resolveOpts(
+			append(
+				api.Extensions.Options(),
+				api.DynamicOptions(c, q, cc)...,
+			),
+		)
 	} else if private && !api.PublicOnly {
 		opts = &api.PrivateOptions
 	}
@@ -158,43 +204,56 @@ func (api *CallbackAPI) Expose(c *Context, q *botapi.CallbackQuery, cc *Callback
 	}
 }
 
-func (api *CallbackAPI) sendHelp(c *Context, q *botapi.CallbackQuery) {
+func (api *CallbackAPI) SendHelp(c *Context, q *botapi.CallbackQuery, cc *CallbackCmd) {
 	path := "/" + strings.ReplaceAll(api.Path, "/", " ")
+	root := path == "/"
 
 	text := &strings.Builder{}
-	text.WriteString(fmt.Sprintf(
-		"<pre>\n%q - %s\nCommands available:\n\n",
-		path,
-		api.Title,
-	))
+	text.WriteString("*" + api.Title + "* - Commands:\n\n")
 
-	for key := range api.Actions {
-		text.WriteString("\t\t" + key + "\n")
+	if !root {
+		path += " "
 	}
 
-	if api.DynamicOptions != nil {
-		text.WriteString(fmt.Sprintf(`
-These commands are dynamic and may not respect the single-word format.
-So, partial matches are supported!
+	for key := range api.Actions {
+		if strings.HasPrefix(key, "_") {
+			continue
+		}
 
-I.e. if the command text is 
-	"🚀 Space stuff"
-You could use 
-	"%s space"
-		`, path))
+		text.WriteString(fmt.Sprintf("\t\t\t\t%s%s\n", path, key))
+	}
+
+	if root {
+		text.WriteString(`
+You can access most sub-menus using just commands.
+			*/stats games week*
+
+To see available sub-commands, use:
+			*/cmd help*, or 
+			*/cmd ?*
+		`)
+	} else if api.DynamicOptions != nil {
+		text.WriteString(fmt.Sprintf(`
+Partial matches are supported!
+
+So, if the command text is 
+				"🚀 Space stuff"
+You could use:
+				%sspace				%s🚀
+		`, path, path))
 	}
 
 	if q == nil {
 		msg := &botapi.MessageConfig{
 			BaseChat: botapi.BaseChat{ChatID: c.Chat.ID},
 		}
-		msg.ParseMode = "HTML"
-		msg.Text = text.String() + "</pre>"
+		msg.ParseMode = botapi.ModeMarkdown
+		msg.Text = text.String()
 		SendConfig(c.Bot, msg)
 	} else {
 		msg := botapi.NewEditMessageText(c.Chat.ID, q.Message.MessageID, api.Title)
-		msg.ParseMode = "HTML"
-		msg.Text = text.String() + "</pre>"
+		msg.ParseMode = botapi.ModeMarkdown
+		msg.Text = text.String()
 		SendUpdate(c.Bot, &msg)
 	}
 }
@@ -227,10 +286,19 @@ func (api *CallbackAPI) privateRedirect(c *Context, q *botapi.CallbackQuery) {
 }
 
 func (api *CallbackAPI) resolveOpts(opts []map[string]string) (res []map[string]string) {
-	res = opts
+	res = make([]map[string]string, 0, len(opts))
 
-	for i, row := range opts {
-		for k, v := range row {
+	i := -1
+
+	for _, row := range opts {
+		if len(row) == 0 {
+			continue
+		}
+
+		i++
+		res = append(res, row)
+
+		for k, v := range res[i] {
 			if strings.HasPrefix(v, "_") || strings.HasPrefix(v, "!!") {
 				continue
 			}

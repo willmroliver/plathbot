@@ -1,3 +1,6 @@
+//go:build reddit
+// +build reddit
+
 package reddit
 
 import (
@@ -5,6 +8,8 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
+	"github.com/willmroliver/plathbot/src/db"
+	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
 )
 
@@ -16,6 +21,17 @@ const (
 var (
 	adminAPI = AdminAPI()
 )
+
+func init() {
+	db.MigrateModel(&model.RedditPost{})
+	db.MigrateModel(&model.RedditPostComment{})
+
+	api.RegisterCallbackAPI(Path, API)
+
+	api.BeforeListen(func(s *api.Server) {
+		TrackPosts(s.DB, time.Minute*2)
+	})
+}
 
 func API() *api.CallbackAPI {
 	admin, view := "admin", "raid"

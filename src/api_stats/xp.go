@@ -1,3 +1,6 @@
+//go:build stats
+// +build stats
+
 package stats
 
 import (

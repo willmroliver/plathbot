@@ -1,0 +1,244 @@
+//go:build reddit && account
+// +build reddit,account
+
+package account
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"log"
+	"net/url"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	goreddit "github.com/vartanbeno/go-reddit/v2/reddit"
+	"github.com/willmroliver/plathbot/src/api"
+	account "github.com/willmroliver/plathbot/src/api_account"
+	reddit "github.com/willmroliver/plathbot/src/api_reddit"
+	"github.com/willmroliver/plathbot/src/model"
+	"github.com/willmroliver/plathbot/src/repo"
+	"github.com/willmroliver/plathbot/src/util"
+	"gorm.io/gorm"
+)
+
+var (
+	redditsOpen, confirmOpen = sync.Map{}, sync.Map{}
+)
+
+func init() {
+	account.Extensions.ExtendAPI(reddit.Title, reddit.Path, API().Select)
+}
+
+func API() *api.CallbackAPI {
+	return api.NewCallbackAPI(
+		reddit.Title,
+		reddit.Path,
+		&api.CallbackConfig{
+			Actions: map[string]api.CallbackAction{
+				"view": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
+					if r := OpenReddit(c.Server.DB, cq); r != nil {
+						r.View(c, cq)
+					}
+				},
+				"update": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
+					if r := OpenReddit(c.Server.DB, cq); r != nil {
+						r.Update(c, cq)
+					}
+				},
+				"confirm": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
+					if ch, ok := confirmOpen.Load(c.User.ID); ok {
+						ch.(chan struct{}) <- struct{}{}
+					}
+				},
+				"remove": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
+					if r := OpenReddit(c.Server.DB, cq); r != nil {
+						r.Remove(c, cq)
+					}
+				},
+			},
+			PrivateOptions: []map[string]string{
+				{"🔗 Link Account": "update"},
+				{"👀 View": "view", "😶‍🌫️ Unlink": "remove"},
+				api.KeyboardNavRow(account.Path),
+			},
+			PrivateOnly: true,
+		},
+	)
+}
+
+type Reddit struct {
+	*api.Interaction[string]
+	repo *repo.UserRepo
+	user *botapi.User
+}
+
+func NewReddit(db *gorm.DB, query *botapi.CallbackQuery) *Reddit {
+	return &Reddit{
+		Interaction: api.NewInteraction[string](query.Message, ""),
+		repo:        repo.NewUserRepo(db),
+		user:        query.From,
+	}
+}
+
+func OpenReddit(db *gorm.DB, query *botapi.CallbackQuery) (r *Reddit) {
+	redditsOpen.Range(func(key any, value any) bool {
+		if value.(*api.Interaction[any]).Age() > time.Minute*5 {
+			redditsOpen.Delete(key)
+		}
+
+		return true
+	})
+
+	if data, exists := redditsOpen.Load(query.From.ID); exists {
+		r = data.(*Reddit)
+	} else {
+		r = NewReddit(db, query)
+	}
+
+	return
+}
+
+func (r *Reddit) User() *model.User {
+	return r.repo.Get(r.user)
+}
+
+func (r *Reddit) View(c *api.Context, query *botapi.CallbackQuery) {
+	text := r.User().RedditUsername
+	if text == "" {
+		text = "Not linked"
+	}
+
+	api.SendBasic(c.Bot, query.Message.Chat.ID, text)
+}
+
+func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
+	r.Mutate("update", query.Message)
+
+	api.SendConfig(c.Bot, r.NewMessage("Okay! Send me the username of the reddit account you'd like to link.", nil))
+
+	hook := api.NewMessageHook(func(s *api.Server, m *botapi.Message, data any) (done bool) {
+		done = true
+		re := data.(*Reddit)
+
+		if !(r.Is("update") && util.TryLockFor(fmt.Sprintf("%p reddit", data), time.Minute*5)) {
+			return
+		}
+
+		// Generate a verification token
+		bytes := make([]byte, 16)
+		if _, err := rand.Read(bytes); err != nil {
+			log.Printf("Error generating reddit link token: %q", bytes)
+			return
+		}
+
+		token := hex.EncodeToString(bytes)
+
+		// Send the verification token & post
+		api.SendConfig(s.Bot, re.NewMessage(token, nil))
+		api.SendConfig(s.Bot, re.NewMessage(`
+🔗 Account Link Request
+
+1️⃣ Hit the *Verify* button below
+
+2️⃣ Send the verification token.
+
+3️⃣ Come back here and hit *Confirm* to verify.
+			`,
+			api.InlineKeyboard([]map[string]string{{
+				"Verify": api.KeyboardLink(fmt.Sprintf(
+					"https://www.reddit.com/message/compose/?to=%s&subject=Verify&message=%s",
+					url.QueryEscape(os.Getenv("GO_REDDIT_CLIENT_USERNAME")),
+					url.QueryEscape(token),
+				)),
+			}, {
+				"Confirm": reddit.Path + "/confirm",
+			}}),
+		))
+
+		tryConfirm := func() bool {
+			// Poll the post for the verification token
+			type Payload struct {
+				Username, Token string
+				Success         bool
+			}
+
+			payload := &Payload{Username: strings.TrimPrefix(m.Text, "u/"), Token: string(token)}
+
+			reddit.PollInbox(time.Second, 0, func(ms []*goreddit.Message, messages []*goreddit.Message, p any) bool {
+				payload = p.(*Payload)
+
+				for _, m := range append(ms, messages...) {
+					if m.Text == payload.Token && m.Author == payload.Username {
+						payload.Success = true
+						return true
+					}
+				}
+
+				return false
+			}, payload)
+
+			// If the verification token was found, link the account
+			if payload.Success {
+				user := c.GetUser()
+				user.RedditUsername = payload.Username
+
+				if err := c.UserRepo.Save(user); err != nil {
+					api.SendConfig(s.Bot, re.NewMessage("Something went wrong.", nil))
+					return true
+				}
+
+				msg := botapi.NewMessage(c.Chat.ID, fmt.Sprintf("✅ Linked to %q", user.RedditUsername))
+				msg.ReplyMarkup = api.InlineKeyboard([]map[string]string{{reddit.Title: reddit.Path}}, fmt.Sprintf("user=%d", re.user.ID))
+
+				api.SendConfig(s.Bot, msg)
+
+				return true
+			} else {
+				api.SendConfig(s.Bot, re.NewMessage("Verification failed.", nil))
+				return false
+			}
+		}
+
+		ch := make(chan struct{}, 1)
+		confirmOpen.Store(c.User.ID, ch)
+
+		awaiting := true
+
+		for awaiting {
+			select {
+			case <-ch:
+				if tryConfirm() {
+					confirmOpen.Delete(c.User.ID)
+					return
+				}
+				continue
+			case <-time.After(time.Minute * 5):
+				confirmOpen.Delete(c.User.ID)
+				return
+			}
+		}
+
+		return
+	}, r, time.Minute*5)
+
+	c.Server.RegisterChatHook(query.Message.Chat.ID, hook)
+}
+
+func (r *Reddit) Remove(c *api.Context, query *botapi.CallbackQuery) {
+	user := c.GetUser()
+	user.RedditUsername = ""
+
+	if err := c.UserRepo.Save(user); err != nil {
+		api.SendBasic(c.Server.Bot, c.Chat.ID, "Unexpected error unlinking account.")
+		return
+	}
+
+	api.SendUpdate(c.Bot, r.NewMessageUpdate(
+		"✅ Deleted",
+		api.InlineKeyboard([]map[string]string{{reddit.Title: reddit.Path}}, fmt.Sprintf("user=%d", r.user.ID)),
+	))
+}

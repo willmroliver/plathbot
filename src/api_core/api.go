@@ -8,12 +8,6 @@ import (
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
-	account "github.com/willmroliver/plathbot/src/api_account"
-	emoji "github.com/willmroliver/plathbot/src/api_emoji"
-	games "github.com/willmroliver/plathbot/src/api_games"
-	pfp "github.com/willmroliver/plathbot/src/api_pfp"
-	reddit "github.com/willmroliver/plathbot/src/api_reddit"
-	stats "github.com/willmroliver/plathbot/src/api_stats"
 	"github.com/willmroliver/plathbot/src/db"
 	"github.com/willmroliver/plathbot/src/util"
 )
@@ -21,77 +15,6 @@ import (
 const (
 	AdoptLink  string = "https://gifts.worldwildlife.org/gift-center/gifts/species-adoptions/duck-billed-platypus"
 	DonateLink string = "https://support.wwf.org.uk/"
-)
-
-var (
-	accountAPI = account.API()
-	redditAPI  = reddit.API()
-	gamesAPI   = games.API()
-	emojiAPI   = emoji.API()
-	statsAPI   = stats.API()
-
-	inlineAPI = &api.InlineAPI{
-		Actions: map[string]api.InlineAction{
-			"fact":   requestFact,
-			"adopt":  requestAdopt,
-			"donate": requestDonate,
-		},
-	}
-
-	commandAPI = &api.CommandAPI{
-		Actions: map[string]api.CommandAction{
-			"/start": sendStart,
-			"/help":  sendHelp,
-			"/fact":  sendFact,
-			"/pfp":   pfp.API,
-			"/hub": func(c *api.Context, m *botapi.Message, args ...string) {
-				callbackAPI.Expose(c, nil, nil)
-			},
-			"/adopt": func(c *api.Context, m *botapi.Message, args ...string) {
-				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
-					api.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
-				}
-			},
-			"/donate": func(c *api.Context, m *botapi.Message, args ...string) {
-				if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
-					api.SendBasic(c.Bot, c.Chat.ID, DonateLink)
-				}
-			},
-		},
-	}
-
-	callbackAPI = &api.CallbackAPI{
-		Title: "🚀🌖 P1ath Hub",
-		Actions: map[string]api.CallbackAction{
-			accountAPI.Path: accountAPI.Select,
-			redditAPI.Path:  redditAPI.Select,
-			gamesAPI.Path:   gamesAPI.Select,
-			emojiAPI.Path:   emojiAPI.Select,
-			statsAPI.Path:   statsAPI.Select,
-		},
-		DynamicOptions: func(ctx *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) (opts []map[string]string) {
-			apis := []*api.CallbackAPI{
-				accountAPI,
-				redditAPI,
-				gamesAPI,
-				emojiAPI,
-				statsAPI,
-			}
-
-			opts = make([]map[string]string, len(apis))
-			public := ctx.Chat.Type != "private"
-
-			for i, a := range apis {
-				if a.PrivateOnly && public {
-					opts[i] = map[string]string{a.Title: api.KeyboardLink(api.ToPrivateString(ctx.Bot, a.Path))}
-				} else {
-					opts[i] = map[string]string{a.Title: a.Path}
-				}
-			}
-
-			return
-		},
-	}
 )
 
 func NewServer() *api.Server {
@@ -102,73 +25,34 @@ func NewServer() *api.Server {
 
 	s := api.NewServer(conn)
 
-	s.CallbackAPI = callbackAPI
-	s.CommandAPI = commandAPI
-	s.InlineAPI = inlineAPI
+	s.RegisterInlineAction("fact", requestFact)
+	s.RegisterInlineAction("adopt", requestAdopt)
+	s.RegisterInlineAction("donate", requestDonate)
 
-	reddit.TrackPosts(s.DB, time.Minute*2)
+	s.RegisterCommandAction("/start", func(c *api.Context, m *botapi.Message, args ...string) {
+		s.CallbackAPI.Expose(c, nil, nil)
+	})
+	s.RegisterCommandAction("/help", func(ctx *api.Context, m *botapi.Message, s ...string) {
+		ctx.Server.CallbackAPI.SendHelp(ctx, nil, nil)
+	})
+	s.RegisterCommandAction("/hub", func(c *api.Context, m *botapi.Message, args ...string) {
+		s.CallbackAPI.Expose(c, nil, nil)
+	})
+
+	s.RegisterCommandAction("/fact", sendFact)
+
+	s.RegisterCommandAction("/adopt", func(c *api.Context, m *botapi.Message, args ...string) {
+		if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
+			api.SendBasic(c.Bot, c.Chat.ID, AdoptLink)
+		}
+	})
+	s.RegisterCommandAction("/donate", func(c *api.Context, m *botapi.Message, args ...string) {
+		if util.TryLockFor(fmt.Sprintf("%d adopt&donate", c.Chat.ID), time.Second*3) {
+			api.SendBasic(c.Bot, c.Chat.ID, DonateLink)
+		}
+	})
 
 	return s
-}
-
-func sendStart(c *api.Context, m *botapi.Message, args ...string) {
-	if len(args) < 2 {
-		sendHelp(c, m)
-		return
-	}
-
-	c.Server.CommandAPI.Actions["/"+args[1]](c, m)
-}
-
-func sendHelp(c *api.Context, m *botapi.Message, args ...string) {
-	public := fmt.Sprintf(`
-	Welcome to the P1athHub - Next stop, the moon 🚀🌖
-
-	Wanna talk? %s
-	
-	🐾 /hub 🚀   	
-	🐾 /help 😣		
-	🐾 /fact 🧠		
-	🐾 /adopt 🐼 	
-	🐾 /donate 💸	
-	🐾 /account 💻	
-	🐾 /games 🎮	
-	🐾 /emojis 🙂	
-	🐾 /stats 📊	
-
-	For more info, pass 'help' or '?' to any of these commands:
-		"/games help"
-	`, api.AtBotString(c.Bot))
-
-	private := `
-	Hey, it's P1ath 🚀🌖
-
-	What can I help you with?
-	
-	🐾 /hub 🚀   	- We all prefer buttons
-	🐾 /help 😣		- You've made it this far
-	🐾 /fact 🧠		- Just for fun :)
-	🐾 /adopt 🐼 	- Adopt a platypus
-	🐾 /donate 💸	- Support a good cause
-	🐾 /account 💻	- Manage your account
-	🐾 /games 🎮	- Let's goooo
-	🐾 /emojis 🙂	- React leaderboards <3
-	🐾 /stats 📊	- Top the charts for airdrops!
-
-	For more info, pass 'help' or '?' to any of these commands:
-		"/games help"
-	`
-
-	text := public
-	if c.Chat.Type == "private" {
-		text = private
-	} else if !util.TryLockFor(fmt.Sprintf("%d help", c.Chat.ID), time.Second*5) {
-		return
-	}
-
-	msg := botapi.NewMessage(c.Chat.ID, text)
-	msg.ParseMode = botapi.ModeMarkdown
-	c.Bot.Send(msg)
 }
 
 func sendFact(c *api.Context, m *botapi.Message, args ...string) {
