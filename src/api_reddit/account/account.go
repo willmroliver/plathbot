@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	Path                     = account.Path + "/" + reddit.Path
 	redditsOpen, confirmOpen = sync.Map{}, sync.Map{}
 )
 
@@ -36,7 +37,7 @@ func init() {
 func API() *api.CallbackAPI {
 	return api.NewCallbackAPI(
 		reddit.Title,
-		account.Path+"/"+reddit.Path,
+		Path,
 		&api.CallbackConfig{
 			Actions: map[string]api.CallbackAction{
 				"view": func(c *api.Context, cq *botapi.CallbackQuery, cc *api.CallbackCmd) {
@@ -155,7 +156,7 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 					url.QueryEscape(token),
 				)),
 			}, {
-				"Confirm": reddit.Path + "/confirm",
+				"Confirm": Path + "/confirm",
 			}}),
 		))
 
@@ -192,13 +193,19 @@ func (r *Reddit) Update(c *api.Context, query *botapi.CallbackQuery) {
 				}
 
 				msg := botapi.NewMessage(c.Chat.ID, fmt.Sprintf("✅ Linked to %q", user.RedditUsername))
-				msg.ReplyMarkup = api.InlineKeyboard([]map[string]string{{reddit.Title: reddit.Path}}, fmt.Sprintf("user=%d", re.user.ID))
+				msg.ReplyMarkup = api.InlineKeyboard([]map[string]string{{reddit.Title: Path}}, fmt.Sprintf("user=%d", re.user.ID))
 
 				api.SendConfig(s.Bot, msg)
 
 				return true
 			} else {
-				api.SendConfig(s.Bot, re.NewMessage("Verification failed.", nil))
+				api.SendConfig(s.Bot, re.NewMessage(`
+Verification failed. 
+
+Check for spelling errors in the username passed.
+
+You may also be shadow-banned, check here: https://www.reddit.com/appeals
+				`, nil))
 				return false
 			}
 		}
