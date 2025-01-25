@@ -63,7 +63,7 @@ func API() *api.CallbackAPI {
 			PrivateOptions: []map[string]string{
 				{"🔗 Link Account": "update"},
 				{"👀 View": "view", "😶‍🌫️ Unlink": "remove"},
-				api.KeyboardNavRow(account.Path),
+				api.KeyboardNavRow(".."),
 			},
 			PrivateOnly: true,
 		},
