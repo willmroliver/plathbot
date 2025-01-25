@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	Title = "💻 Your Account"
+	Title = "💻 Account"
 	Path  = "account"
 )
 
