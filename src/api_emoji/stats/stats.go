@@ -9,5 +9,5 @@ import (
 )
 
 func init() {
-	stats.Extensions.ExtendAPI(emoji.Title, emoji.Path, emoji.API().Select)
+	stats.Extensions.ExtendAPI(emoji.Title, stats.Path+"/"+emoji.Path, emoji.API().Select)
 }
