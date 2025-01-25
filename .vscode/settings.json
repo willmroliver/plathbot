@@ -1,5 +1,0 @@
-{
-    "gopls": {
-        "buildFlags": ["-tags=account emoji games pfp reddit stats"]
-    }
-}
