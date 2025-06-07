@@ -125,7 +125,7 @@ func (r *UserXPRepo) TopXPs(title, order string, offset, limit int, where string
 		query.Where(where, args...)
 	}
 
-	if err := query.Debug().Find(&c).Error; err != nil {
+	if err := query.Find(&c).Error; err != nil {
 		return nil
 	}
 

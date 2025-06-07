@@ -1,6 +1,8 @@
 .DS_Store
+.vscode
 vendor
 *.db
 *.env
 .ssh
 data
+main

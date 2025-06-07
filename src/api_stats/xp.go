@@ -50,7 +50,7 @@ func (t XPTitle) getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.Callbac
 	t.sendTable(
 		c,
 		"⏳ All-Time",
-		r.TopXPs(string(t), "`xp` DESC", 0, 15, ""),
+		r.TopXPs(string(t), "xp DESC", 0, 15, ""),
 		func(xp *model.UserXP) int64 {
 			return xp.XP
 		},
@@ -58,6 +58,7 @@ func (t XPTitle) getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.Callbac
 }
 
 func (t XPTitle) getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
+<<<<<<< HEAD
 	now := time.Now()
 	from := util.FirstOfMonth(&now)
 
@@ -113,6 +114,7 @@ func (t XPTitle) sendTable(c *api.Context, title string, data []*model.UserXP, g
 			"%d. %s - %d\n",
 			i+1,
 			uname,
+			xp.User.AtString(),
 			get(xp),
 		))
 	}

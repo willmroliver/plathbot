@@ -18,6 +18,7 @@ const (
 )
 
 func NewServer() *api.Server {
+<<<<<<< HEAD
 	dbn := os.Getenv("MOUNT_DIR") + "/" + os.Getenv("DB_NAME")
 
 	conn, err := db.Open(dbn)
