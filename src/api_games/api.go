@@ -26,11 +26,13 @@ func API() *api.CallbackAPI {
 			Actions: map[string]api.CallbackAction{
 				"cointoss":          CointossQuery,
 				"rockpaperscissors": RockPaperScissorsQuery,
+				"connect4":          ConnectFourQuery,
 			},
 			PublicCooldown: time.Second * 3,
 			PublicOptions: []map[string]string{
 				{CointossTitle: "cointoss"},
 				{RockPaperScissorsTitle: "rockpaperscissors"},
+				{ConnectFourTitle: "connect4"},
 				api.KeyboardNavRow(".."),
 			},
 			PublicOnly: true,
