@@ -17,6 +17,8 @@ func TestUserXP(t *testing.T) {
 	}
 
 	conn, _ := db.Open(os.Getenv("TEST_DB_NAME"))
+	db.Migrate(conn)
+
 	s := service.NewUserXPService(conn)
 	user := s.UserRepo.Get(tgUser)
 	conn.Exec("DELETE FROM user_xps WHERE title = ?", service.XPTitleEngage)

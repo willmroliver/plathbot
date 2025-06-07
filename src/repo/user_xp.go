@@ -111,19 +111,21 @@ func (r *UserXPRepo) List(title, order string, offset, lim int) (xps []*model.Us
 }
 
 // TopXPs returns the all-time highest count & user for each tracked title
-func (r *UserXPRepo) TopXPs(title, order string, offset, limit int) (c []*model.UserXP) {
+func (r *UserXPRepo) TopXPs(title, order string, offset, limit int, where string, args ...any) (c []*model.UserXP) {
 	c = make([]*model.UserXP, 0)
 
-	err := r.db.
+	query := r.db.
 		Where("title = ?", title).
 		Joins("User").
 		Order(order).
 		Offset(offset).
-		Limit(limit).
-		Find(&c).
-		Error
+		Limit(limit)
 
-	if err != nil {
+	if where != "" {
+		query.Where(where, args...)
+	}
+
+	if err := query.Find(&c).Error; err != nil {
 		return nil
 	}
 

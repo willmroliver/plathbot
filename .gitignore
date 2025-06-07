@@ -5,4 +5,4 @@ vendor
 *.env
 .ssh
 data
-.vscode
+main

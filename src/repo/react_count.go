@@ -97,6 +97,9 @@ func (r *ReactCountRepo) TopCounts() (c []*model.ReactCount) {
 func (r *ReactCountRepo) TopMonthly() (c []*model.ReactCount) {
 	c = make([]*model.ReactCount, 0)
 
+	now := time.Now()
+	from := util.FirstOfMonth(&now)
+
 	if err := r.db.Raw(`
 		WITH top_counts AS (
 			SELECT 
@@ -105,11 +108,12 @@ func (r *ReactCountRepo) TopMonthly() (c []*model.ReactCount) {
 				month_count AS count,
 				ROW_NUMBER() OVER (PARTITION BY emoji ORDER BY month_count DESC, user_id ASC) as rn
 			FROM react_counts
+			WHERE month_from >= ?
 		)
 		SELECT emoji, user_id, count
 		FROM top_counts
 		WHERE rn = 1
-	`).Preload("User").Find(&c).Error; err != nil {
+	`, from).Preload("User").Find(&c).Error; err != nil {
 		return nil
 	}
 
@@ -128,6 +132,9 @@ func (r *ReactCountRepo) TopMonthly() (c []*model.ReactCount) {
 func (r *ReactCountRepo) TopWeekly() (c []*model.ReactCount) {
 	c = make([]*model.ReactCount, 0)
 
+	now := time.Now()
+	from := util.LastMonday(&now)
+
 	if err := r.db.Raw(`
 		WITH top_counts AS (
 			SELECT 
@@ -136,11 +143,12 @@ func (r *ReactCountRepo) TopWeekly() (c []*model.ReactCount) {
 				week_count AS count,
 				ROW_NUMBER() OVER (PARTITION BY emoji ORDER BY week_count DESC, user_id ASC) as rn
 			FROM react_counts
+			WHERE week_from >= ?
 		)
 		SELECT emoji, user_id, count
 		FROM top_counts
 		WHERE rn = 1
-	`).Preload("User").Find(&c).Error; err != nil {
+	`, from).Preload("User").Find(&c).Error; err != nil {
 		return nil
 	}
 

@@ -18,10 +18,14 @@ const (
 )
 
 func NewServer() *api.Server {
-	conn, err := db.Open(os.Getenv("MOUNT_DIR") + "/" + os.Getenv("DB_NAME"))
+	dbn := os.Getenv("MOUNT_DIR") + "/" + os.Getenv("DB_NAME")
+
+	conn, err := db.Open(dbn)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to connect to database %q: %q", "test.db", err.Error()))
+		panic(fmt.Sprintf("Failed to connect to database %q: %q", dbn, err.Error()))
 	}
+
+	log.Printf("Server: Connection opened to %s\n", dbn)
 
 	s := api.NewServer(conn)
 
