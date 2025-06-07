@@ -6,11 +6,13 @@ package stats
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/willmroliver/plathbot/src/api"
 	"github.com/willmroliver/plathbot/src/model"
 	"github.com/willmroliver/plathbot/src/repo"
+	"github.com/willmroliver/plathbot/src/util"
 )
 
 const (
@@ -48,7 +50,7 @@ func (t XPTitle) getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.Callbac
 	t.sendTable(
 		c,
 		"⏳ All-Time",
-		r.TopXPs(string(t), "xp DESC", 0, 15),
+		r.TopXPs(string(t), "`xp` DESC", 0, 15, ""),
 		func(xp *model.UserXP) int64 {
 			return xp.XP
 		},
@@ -56,10 +58,13 @@ func (t XPTitle) getAll(c *api.Context, q *botapi.CallbackQuery, cc *api.Callbac
 }
 
 func (t XPTitle) getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
+	now := time.Now()
+	from := util.FirstOfMonth(&now)
+
 	r := repo.NewUserXPRepo(c.Server.DB)
 	t.sendTable(
 		c, "📆 Monthly",
-		r.TopXPs(string(t), "month_xp DESC", 0, 15),
+		r.TopXPs(string(t), "month_xp DESC", 0, 15, "month_from >= ?", from),
 		func(xp *model.UserXP) int64 {
 			return xp.MonthXP
 		},
@@ -67,11 +72,14 @@ func (t XPTitle) getMonthly(c *api.Context, q *botapi.CallbackQuery, cc *api.Cal
 }
 
 func (t XPTitle) getWeekly(c *api.Context, q *botapi.CallbackQuery, cc *api.CallbackCmd) {
+	now := time.Now()
+	from := util.LastMonday(&now)
+
 	r := repo.NewUserXPRepo(c.Server.DB)
 	t.sendTable(
 		c,
 		"📰 Weekly",
-		r.TopXPs(string(t), "week_xp DESC", 0, 15),
+		r.TopXPs(string(t), "week_xp DESC", 0, 15, "week_from >= ?", from),
 		func(xp *model.UserXP) int64 {
 			return xp.WeekXP
 		},
@@ -87,10 +95,15 @@ func (t XPTitle) sendTable(c *api.Context, title string, data []*model.UserXP, g
 	text.WriteString(title + " - " + data[0].Title + "\n\n")
 
 	for i, xp := range data {
+		uname := fmt.Sprintf("%d", xp.UserID)
+		if xp.User != nil {
+			uname = xp.User.AtString()
+		}
+
 		if i == 0 {
 			text.WriteString(fmt.Sprintf(
 				"👑 %s - %d\n",
-				xp.User.AtString(),
+				uname,
 				get(xp),
 			))
 			continue
@@ -99,7 +112,7 @@ func (t XPTitle) sendTable(c *api.Context, title string, data []*model.UserXP, g
 		text.WriteString(fmt.Sprintf(
 			"%d. %s - %d\n",
 			i+1,
-			xp.User.AtString(),
+			uname,
 			get(xp),
 		))
 	}

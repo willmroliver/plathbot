@@ -44,6 +44,11 @@ func TestAll(t *testing.T) {
 	}
 
 	conn, _ := db.Open(os.Getenv("TEST_DB_NAME"))
+
+	db.MigrateModel(&model.RedditPost{})
+	db.MigrateModel(&model.RedditPostComment{})
+	db.Migrate(conn)
+
 	r := repo.NewRedditPostRepo(conn)
 
 	if err := r.Save(post); err != nil {

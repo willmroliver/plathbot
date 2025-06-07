@@ -44,6 +44,8 @@ func TestReactCount(t *testing.T) {
 	}
 
 	conn, _ := db.Open(os.Getenv("TEST_DB_NAME"))
+	db.Migrate(conn)
+
 	service := service.NewReactService(conn)
 	user := service.UserRepo.Get(tgUser)
 
