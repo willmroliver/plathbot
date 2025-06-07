@@ -159,7 +159,7 @@ func (g *ConnectFour) RequestGame(q *botapi.CallbackQuery) (err error) {
 }
 
 func (g *ConnectFour) AcceptGame(c *api.Context, q *botapi.CallbackQuery) (err error) {
-	if !g.Is("request") || (q.Message.Chat.Type != "private" && q.From.ID == g.ID) {
+	if !g.Is("request") {
 		log.Println("AcceptGame failed")
 		return
 	}
@@ -305,7 +305,7 @@ func (g *ConnectFour) menuBuilder() *strings.Builder {
 				colour = n.Colour
 			}
 
-			text.WriteString(colour + "     ")
+			text.WriteString(colour + "    ")
 		}
 		text.WriteString("\n\n")
 	}
