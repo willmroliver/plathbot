@@ -310,8 +310,13 @@ func (g *ConnectFour) menuBuilder() *strings.Builder {
 			if n := g.getNode(j, 5-i); n != nil {
 				colour = n.Colour
 			}
-
-			text.WriteString("  " + colour + "  ")
+			if j > 0 {
+				text.WriteString("  ")
+			}
+			text.WriteString(colour)
+			if j < 6 {
+				text.WriteString("  ")
+			}
 		}
 		text.WriteString("\n\n")
 	}

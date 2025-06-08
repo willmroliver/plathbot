@@ -15,14 +15,12 @@ const (
 	BuiltInDelete = "_DEL"
 )
 
-var (
-	builtin = map[string]func(*Context, *botapi.CallbackQuery){
-		BuiltInDelete: func(ctx *Context, q *botapi.CallbackQuery) {
-			u := botapi.NewDeleteMessage(ctx.Chat.ID, q.Message.MessageID)
-			SendConfig(ctx.Bot, &u)
-		},
-	}
-)
+var builtin = map[string]func(*Context, *botapi.CallbackQuery){
+	BuiltInDelete: func(ctx *Context, q *botapi.CallbackQuery) {
+		u := botapi.NewDeleteMessage(ctx.Chat.ID, q.Message.MessageID)
+		SendConfig(ctx.Bot, &u)
+	},
+}
 
 type CallbackAction func(*Context, *botapi.CallbackQuery, *CallbackCmd)
 
@@ -346,7 +344,7 @@ func NewCallbackCmd(cmd string) *CallbackCmd {
 		vals := cmd[:i]
 		cmd = cmd[i+1:]
 
-		for _, v := range strings.Split(vals, ",") {
+		for v := range strings.SplitSeq(vals, ",") {
 			if i = strings.Index(v, "="); i != -1 {
 				tags[v[:i]] = v[i+1:]
 			} else {
