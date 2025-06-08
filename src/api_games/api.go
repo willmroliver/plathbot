@@ -4,6 +4,7 @@
 package games
 
 import (
+	"sync"
 	"time"
 
 	"github.com/willmroliver/plathbot/src/api"
@@ -13,6 +14,9 @@ const (
 	Title = "🎮 Games"
 	Path  = "games"
 )
+
+// moveMux protects against rate limits for all games occurring in a group
+var moveMux = &sync.Mutex{}
 
 func init() {
 	api.RegisterCallbackAPI(Path, API)

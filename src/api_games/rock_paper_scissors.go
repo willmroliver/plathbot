@@ -24,10 +24,6 @@ const (
 	MoveScissors Move = "✂️"
 )
 
-var (
-	moveMux = &sync.Mutex{}
-)
-
 type RockPaperScissors struct {
 	*api.Interaction[string]
 	ID          int64

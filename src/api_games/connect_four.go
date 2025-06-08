@@ -27,7 +27,7 @@ type ConnectNode struct {
 type ConnectFour struct {
 	*api.Interaction[string]
 	ID      int64
-	Board   [7][7]*ConnectNode
+	Board   [7][6]*ConnectNode
 	Height  [7]int
 	Bot     *botapi.BotAPI
 	Players [2]*botapi.User
@@ -63,7 +63,7 @@ var (
 func ConnectFourQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.CallbackCmd) {
 	c4Running.Range(func(key any, value any) bool {
 		game := value.(*ConnectFour)
-		if game.Age() > time.Minute*5 {
+		if game.Age() > time.Minute*20 {
 			c4Running.Delete(key)
 		}
 
@@ -239,6 +239,12 @@ func (g *ConnectFour) DoMove(col int, c *api.Context, q *botapi.CallbackQuery) (
 		g.movesKeyboard(),
 	)
 
+	moveMux.Lock()
+	defer func() {
+		time.Sleep(time.Millisecond * 400)
+		moveMux.Unlock()
+	}()
+
 	if err = api.SendUpdate(g.Bot, m); err != nil {
 		g.Height[col]--
 		g.Turn = 1 - g.Turn
@@ -246,7 +252,7 @@ func (g *ConnectFour) DoMove(col int, c *api.Context, q *botapi.CallbackQuery) (
 	}
 
 	for _, n := range g.Height {
-		if n < 7 {
+		if n < 6 {
 			return
 		}
 	}
@@ -277,7 +283,7 @@ func (g *ConnectFour) SendWinner(c *api.Context, q *botapi.CallbackQuery, turn i
 }
 
 func (g *ConnectFour) getNode(x, y int) *ConnectNode {
-	if x < 0 || x > 6 || y < 0 || y > 6 {
+	if x < 0 || x > 6 || y < 0 || y > 5 {
 		return nil
 	}
 
@@ -298,14 +304,14 @@ func (g *ConnectFour) menuBuilder() *strings.Builder {
 	text := &strings.Builder{}
 	text.WriteString(ConnectFourTitle + "\n" + g.playerPrefix() + "\n\n")
 
-	for i := range 7 {
+	for i := range 6 {
 		for j := range 7 {
 			colour := "⚪️"
-			if n := g.getNode(j, 6-i); n != nil {
+			if n := g.getNode(j, 5-i); n != nil {
 				colour = n.Colour
 			}
 
-			text.WriteString(colour + "    ")
+			text.WriteString("  " + colour + "  ")
 		}
 		text.WriteString("\n\n")
 	}
@@ -318,7 +324,7 @@ func (g *ConnectFour) movesKeyboard() *botapi.InlineKeyboardMarkup {
 	moves := [7]botapi.InlineKeyboardButton{}
 
 	for i := range moves {
-		if g.Height[i] == 7 {
+		if g.Height[i] == 6 {
 			moves[i] = botapi.NewInlineKeyboardButtonData("✅", g.getCmd("ignore"))
 		} else {
 			moves[i] = botapi.NewInlineKeyboardButtonData("⬆️", g.getCmd(fmt.Sprintf("%d", i)))
