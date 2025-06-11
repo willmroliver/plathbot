@@ -73,13 +73,20 @@ func ConnectFourQuery(c *api.Context, query *botapi.CallbackQuery, cmd *api.Call
 	action := cmd.Get()
 
 	if action == "" {
-		_, exists := c4Running.Load(query.From.ID)
-		if !exists {
-			game := NewConnectFour(c, 3)
+		if value, exists := c4Running.Load(c.User.ID); exists {
+			game := value.(*ConnectFour)
+			u := botapi.NewDeleteMessage(
+				c.Chat.ID,
+				game.Interaction.Msg.MessageID,
+			)
+			api.SendConfig(c.Bot, &u)
+			c4Running.Delete(game.ID)
+		}
 
-			if game.RequestGame(query) == nil {
-				c4Running.Store(game.ID, game)
-			}
+		game := NewConnectFour(c, 3)
+
+		if game.RequestGame(query) == nil {
+			c4Running.Store(game.ID, game)
 		}
 
 		return
@@ -151,7 +158,7 @@ func (g *ConnectFour) RequestGame(q *botapi.CallbackQuery) (err error) {
 	)
 
 	if _, err = g.Bot.Send(msg); err != nil {
-		log.Printf("Error in RequestToss(): %q", err.Error())
+		log.Printf("Error in RequestGame(): %q", err.Error())
 		return
 	}
 
@@ -270,7 +277,7 @@ func (g *ConnectFour) SendWinner(c *api.Context, q *botapi.CallbackQuery, turn i
 
 	if turn != -1 {
 		xp := int64(100)
-		winner = fmt.Sprintf("%s wins! %s +%d XP", api.AtUserString(g.Players[turn]), Colours[turn], xp)
+		winner = fmt.Sprintf("\n%s wins! %s +%d XP", api.AtUserString(g.Players[turn]), Colours[turn], xp)
 		s.UpdateXPs(g.Players[turn], service.XPTitleGames, xp)
 	}
 
@@ -302,9 +309,11 @@ func (g *ConnectFour) playerPrefix() string {
 
 func (g *ConnectFour) menuBuilder() *strings.Builder {
 	text := &strings.Builder{}
-	text.WriteString(ConnectFourTitle + "\n" + g.playerPrefix() + "\n\n")
+	text.WriteString(ConnectFourTitle + "\n" + g.playerPrefix())
 
 	for i := range 6 {
+		text.WriteString("\n\n")
+
 		for j := range 7 {
 			colour := "⚪️"
 			if n := g.getNode(j, 5-i); n != nil {
@@ -318,8 +327,9 @@ func (g *ConnectFour) menuBuilder() *strings.Builder {
 				text.WriteString("  ")
 			}
 		}
-		text.WriteString("\n\n")
 	}
+
+	text.WriteString("\n〰️")
 
 	return text
 }

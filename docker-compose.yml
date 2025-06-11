@@ -6,6 +6,11 @@ services:
       args:
         APP_DIR: ${APP_DIR:-/app}
         ENV_FILE: ${ENV_FILE:-.env}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - ./${MOUNT_DIR}:${APP_DIR:-/app}/${MOUNT_DIR}
     env_file: ${ENV_FILE:-.env}
