@@ -166,7 +166,7 @@ func (g *ConnectFour) RequestGame(q *botapi.CallbackQuery) (err error) {
 }
 
 func (g *ConnectFour) AcceptGame(c *api.Context, q *botapi.CallbackQuery) (err error) {
-	if !g.Is("request") {
+	if !g.Is("request") || (q.Message.Chat.Type != "private" && q.From.ID == g.ID) {
 		log.Println("AcceptGame failed")
 		return
 	}
