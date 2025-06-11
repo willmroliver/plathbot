@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"log"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -117,14 +118,13 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 
 	if s, ok := cc.Tags["user"]; ok {
 		if userID, _ := strconv.ParseInt(s, 10, 64); userID != c.User.ID {
+			log.Printf("User %d cannot use keyboard owned by %d\n", c.User.ID, userID)
 			return
 		}
 	}
 
 	if api.DynamicActions != nil {
-		for k, v := range api.DynamicActions(c, q, cc) {
-			api.Actions[k] = v
-		}
+		maps.Copy(api.Actions, api.DynamicActions(c, q, cc))
 	}
 
 	var cmd string
@@ -135,6 +135,7 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 	}
 
 	if action, ok := api.Actions[cmd]; ok {
+		log.Printf("Direct match in %s: %s\n", api.Title, cmd)
 		action(c, q, cc.Next())
 		return
 	}
@@ -144,6 +145,7 @@ func (api *CallbackAPI) Select(c *Context, q *botapi.CallbackQuery, cc *Callback
 
 		for key, action := range api.Actions {
 			if strings.Contains(strings.ToLower(key), test) {
+				log.Printf("Partial match in %s: %s -> %s\n", api.Title, cmd, key)
 				action(c, q, cc.Next())
 				return
 			}

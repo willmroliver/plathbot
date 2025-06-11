@@ -1,6 +1,8 @@
 package api
 
 import (
+	"log"
+
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -19,4 +21,6 @@ func (api *CommandAPI) Select(c *Context, msg *botapi.Message, args ...string) {
 	if ok {
 		action(c, msg, args[1:]...)
 	}
+
+	log.Printf("Command: Select: Not found: %q\n", args[0])
 }

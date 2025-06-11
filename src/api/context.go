@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -58,14 +59,18 @@ func (ctx *Context) HandleMessage() {
 		return
 	}
 
+	log.Printf("Message: %q, from %d: %q\n", text, m.From.UserName, m.From.ID)
+
 	text = strings.Replace(text, "@"+ctx.Bot.Self.UserName, "", 1)
 
 	var cc *CallbackCmd
 
 	if strings.HasPrefix(text, "/start ") {
-		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(text[len("/start "):], " ", "/") + "/")
+		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) +
+			strings.ReplaceAll(text[len("/start "):], " ", "/") + "/")
 	} else {
-		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) + strings.ReplaceAll(text, " ", "/")[1:] + "/")
+		cc = NewCallbackCmd(fmt.Sprintf("user=%d,cmd|", ctx.User.ID) +
+			strings.ReplaceAll(text, " ", "/")[1:] + "/")
 	}
 
 	cmd := cc.Get()
@@ -87,8 +92,12 @@ func (ctx *Context) HandleMessage() {
 
 			action(ctx, q, cc.Next())
 			return
+		} else {
+			log.Printf("Context: error sending 🚀: %q\n", err.Error())
 		}
 	}
+
+	log.Printf("Callback not found. Trying Command.\n")
 
 	ctx.Server.CommandAPI.Select(ctx, m, strings.Split(text, " ")...)
 }
