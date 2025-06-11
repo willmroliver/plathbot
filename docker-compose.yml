@@ -5,9 +5,12 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_DIR: ${APP_DIR:-/app}
+        ENV_FILE: ${ENV_FILE:-.env}
     volumes:
-      - ./${MOUNT_DIR}:/app/${MOUNT_DIR}
-    env_file: .env
+      - ./${MOUNT_DIR}:${APP_DIR}/${MOUNT_DIR}
+    env_file: ${ENV_FILE:-.env}
     stdin_open: true  # Keep stdin open
     tty: true         # Allocate a pseudo-TTY
     ports:

@@ -28,4 +28,4 @@ if [ "$API_GAMES" -eq 1 ] ; then
     TAGS="$TAGS games"
 fi
 
-go build -tags="$TAGS" ./src/main.go
+go build -v -tags="$TAGS" ./src/main.go
