@@ -28,7 +28,7 @@ COPY ./src/model ./src/model
 COPY ./src/util ./src/util
 
 # Download dependencies
-RUN go mod tidy && go mod download && go mod vendor && \
+RUN go mod tidy && go mod download && \
     go build -o /dev/null ./...
 
 COPY ./src ./src
