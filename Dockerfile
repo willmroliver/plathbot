@@ -33,6 +33,7 @@ RUN go mod tidy && go mod download && go mod vendor && \
 
 COPY ./src ./src
 COPY ./$ENV_FILE ./.env
+COPY ./build.sh ./build.sh
 
 # Build the application
 RUN ./build.sh
