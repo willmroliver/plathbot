@@ -1,2 +1,4 @@
 data/
 run.sh
+go.mod
+go.sum
