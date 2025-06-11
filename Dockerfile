@@ -32,7 +32,7 @@ RUN go mod tidy && go mod download && go mod vendor && \
     go build -o /dev/null ./...
 
 COPY ./src ./src
-COPY ./$ENV_FILE ./env
+COPY ./$ENV_FILE ./.env
 
 # Build the application
 RUN ./build.sh
