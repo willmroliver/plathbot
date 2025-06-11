@@ -31,9 +31,8 @@ COPY ./src/util ./src/util
 RUN go mod tidy && go mod download && go mod vendor && \
     go build -o /dev/null ./...
 
-COPY . .
-
-RUN mv $APP_DIR/$ENV_FILE $APP_DIR/.env
+COPY ./src ./src
+COPY ./$ENV_FILE ./env
 
 # Build the application
 RUN ./build.sh
